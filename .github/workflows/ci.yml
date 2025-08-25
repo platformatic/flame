@@ -61,7 +61,6 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: false
         
     - name: Install dependencies
       run: npm install
@@ -69,11 +68,6 @@ jobs:
     - name: Run tests
       if: matrix.task == 'test'
       run: npm test
-      
-    - name: Upload coverage reports
-      if: matrix.coverage
-      uses: codecov/codecov-action@v3
-      continue-on-error: true
       
     - name: Run linting
       if: matrix.task == 'lint'
@@ -92,21 +86,11 @@ jobs:
         npm pack
         npm install -g *.tgz
         flame --help
-        
-    - name: Upload package artifact
-      if: matrix.task == 'build'
-      uses: actions/upload-artifact@v4
-      with:
-        name: npm-package
-        path: '*.tgz'
-        retention-days: 7
       
     - name: Run integration tests
-      if: matrix.task == 'integration'
       run: npm run test -- test/integration.test.js
       
     - name: Test examples
-      if: matrix.task == 'integration'
       run: |
         timeout 30s node examples/load-test-server.js &
         SERVER_PID=$!
