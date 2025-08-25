@@ -95,7 +95,7 @@ jobs:
         
     - name: Upload package artifact
       if: matrix.task == 'build'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: npm-package
         path: '*.tgz'
