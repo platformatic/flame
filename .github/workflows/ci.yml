@@ -7,13 +7,51 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
-    name: Test
-    runs-on: ubuntu-latest
+  ci:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
     
     strategy:
+      fail-fast: false
       matrix:
-        node-version: [18.x, 20.x, 22.x, 24.x]
+        include:
+          - name: "Test (Node.js 18.x, Ubuntu)"
+            os: ubuntu-latest
+            node-version: "18.x"
+            task: "test"
+          - name: "Test (Node.js 20.x, Ubuntu)"
+            os: ubuntu-latest
+            node-version: "20.x"
+            task: "test"
+            coverage: true
+          - name: "Test (Node.js 22.x, Ubuntu)"
+            os: ubuntu-latest
+            node-version: "22.x"
+            task: "test"
+          - name: "Test (Node.js 24.x, Ubuntu)"
+            os: ubuntu-latest
+            node-version: "24.x"
+            task: "test"
+          - name: "Test (Node.js 20.x, Windows)"
+            os: windows-latest
+            node-version: "20.x"
+            task: "test"
+          - name: "Test (Node.js 22.x, Windows)"
+            os: windows-latest
+            node-version: "22.x"
+            task: "test"
+          - name: "Lint"
+            os: ubuntu-latest
+            node-version: "20.x"
+            task: "lint"
+          - name: "Build & Package"
+            os: ubuntu-latest
+            node-version: "20.x"
+            task: "build"
+          - name: "Integration Tests"
+            os: ubuntu-latest
+            node-version: "20.x"
+            task: "integration"
     
     steps:
     - name: Checkout code
@@ -23,98 +61,52 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
+        cache: false
         
     - name: Install dependencies
-      run: npm ci
+      run: npm install
       
     - name: Run tests
+      if: matrix.task == 'test'
       run: npm test
       
     - name: Upload coverage reports
-      if: matrix.node-version == '20.x'
+      if: matrix.coverage
       uses: codecov/codecov-action@v3
       continue-on-error: true
-
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
       
     - name: Run linting
+      if: matrix.task == 'lint'
       run: npm run lint
 
-  build:
-    name: Build & Package
-    runs-on: ubuntu-latest
-    needs: [test, lint]
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Verify package contents
+    - name: Build and package
+      if: matrix.task == 'build'
       run: |
         npm pack --dry-run
         echo "Package size:"
         npm pack --silent | xargs ls -lh
         
     - name: Test CLI installation
+      if: matrix.task == 'build'
       run: |
         npm pack
         npm install -g *.tgz
         flame --help
         
     - name: Upload package artifact
+      if: matrix.task == 'build'
       uses: actions/upload-artifact@v3
       with:
         name: npm-package
         path: '*.tgz'
         retention-days: 7
-
-  integration:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    needs: [test, lint]
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
       
     - name: Run integration tests
+      if: matrix.task == 'integration'
       run: npm run test -- test/integration.test.js
       
     - name: Test examples
+      if: matrix.task == 'integration'
       run: |
         timeout 30s node examples/load-test-server.js &
         SERVER_PID=$!
