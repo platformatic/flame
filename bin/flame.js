@@ -128,41 +128,85 @@ async function main () {
       }
 
       case 'toggle': {
-        // Find running flame processes and send SIGUSR2
-        const { spawn } = require('child_process')
+        if (process.platform !== 'win32') {
+          // Unix-like systems: Find running flame processes and send SIGUSR2
+          const { spawn } = require('child_process')
 
-        const ps = spawn('ps', ['aux'])
-        let output = ''
+          const ps = spawn('ps', ['aux'])
+          let output = ''
 
-        ps.stdout.on('data', (data) => {
-          output += data.toString()
-        })
-
-        ps.on('close', (code) => {
-          if (code !== 0) {
-            console.error('Error: Could not list processes')
-            process.exit(1)
-          }
-
-          const lines = output.split('\n')
-          const flameProcesses = lines.filter(line =>
-            line.includes('preload.js') || line.includes('flame run')
-          )
-
-          if (flameProcesses.length === 0) {
-            console.error('No running flame processes found')
-            process.exit(1)
-          }
-
-          flameProcesses.forEach(line => {
-            const parts = line.trim().split(/\s+/)
-            const pid = parts[1]
-            if (pid && !isNaN(pid)) {
-              console.log(`Toggling profiler for process ${pid}`)
-              process.kill(parseInt(pid), 'SIGUSR2')
-            }
+          ps.stdout.on('data', (data) => {
+            output += data.toString()
           })
-        })
+
+          ps.on('close', (code) => {
+            if (code !== 0) {
+              console.error('Error: Could not list processes')
+              process.exit(1)
+            }
+
+            const lines = output.split('\n')
+            const flameProcesses = lines.filter(line =>
+              line.includes('preload.js') || line.includes('flame run')
+            )
+
+            if (flameProcesses.length === 0) {
+              console.error('No running flame processes found')
+              process.exit(1)
+            }
+
+            flameProcesses.forEach(line => {
+              const parts = line.trim().split(/\s+/)
+              const pid = parts[1]
+              if (pid && !isNaN(pid)) {
+                console.log(`Toggling profiler for process ${pid}`)
+                process.kill(parseInt(pid), 'SIGUSR2')
+              }
+            })
+          })
+        } else {
+          // Windows: Use tasklist to find processes
+          const { spawn } = require('child_process')
+
+          const tasklist = spawn('tasklist', ['/fi', 'IMAGENAME eq node.exe', '/fo', 'csv'])
+          let output = ''
+
+          tasklist.stdout.on('data', (data) => {
+            output += data.toString()
+          })
+
+          tasklist.on('close', (code) => {
+            if (code !== 0) {
+              console.error('Error: Could not list processes')
+              process.exit(1)
+            }
+
+            const lines = output.split('\n')
+            const processes = []
+
+            for (let i = 1; i < lines.length; i++) {
+              if (lines[i].trim()) {
+                const parts = lines[i].split(',')
+                if (parts.length >= 2) {
+                  const pid = parts[1].replace(/"/g, '')
+                  processes.push(pid)
+                }
+              }
+            }
+
+            if (processes.length === 0) {
+              console.error('No running Node.js processes found')
+              process.exit(1)
+            }
+
+            console.log('Windows detected: Direct signal toggle not supported.')
+            console.log('Available Node.js processes:')
+            processes.forEach(pid => {
+              console.log(`  PID: ${pid}`)
+            })
+            console.log('Please use Ctrl-C or restart your flame application to toggle profiling.')
+          })
+        }
         break
       }
 

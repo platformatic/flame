@@ -30,7 +30,14 @@ function toggleProfiler () {
   }
 }
 
-process.on('SIGUSR2', toggleProfiler)
+// Set up signal handling (SIGUSR2 on Unix-like systems)
+if (process.platform !== 'win32') {
+  process.on('SIGUSR2', toggleProfiler)
+  console.log('Flame preload script loaded. Send SIGUSR2 to toggle profiling.')
+} else {
+  // On Windows, we use SIGINT (Ctrl-C) or set up alternative IPC
+  console.log('Flame preload script loaded. Windows platform detected.')
+  console.log('Use the CLI toggle command or send SIGINT to control profiling.')
+}
 
-console.log('Flame preload script loaded. Send SIGUSR2 to toggle profiling.')
 console.log(`Process PID: ${process.pid}`)
