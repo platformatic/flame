@@ -121,8 +121,9 @@ async function main () {
         const outputFile = args.output || `${path.basename(pprofFile, path.extname(pprofFile))}.html`
 
         console.log(`Generating flamegraph from ${pprofFile}...`)
-        await generateFlamegraph(pprofFile, outputFile)
+        const result = await generateFlamegraph(pprofFile, outputFile)
         console.log(`Flamegraph generated: ${outputFile}`)
+        console.log(result.stdout)
         break
       }
 
