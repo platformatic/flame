@@ -26,8 +26,7 @@
   "author": "Platformatic Inc. <oss@platformatic.dev> (http://platformatic.dev/)",
   "license": "MIT",
   "dependencies": {
-    "@datadog/pprof": "^5.9.0",
-    "@platformatic/react-pprof": "^1.1.0"
+    "@datadog/pprof": "^5.9.0"
   },
   "devDependencies": {
     "autocannon": "^8.0.0",
