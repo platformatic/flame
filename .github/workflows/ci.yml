@@ -90,10 +90,31 @@ jobs:
     - name: Run integration tests
       run: npm run test -- test/integration.test.js
       
-    - name: Test examples
+    - name: Test examples (Linux)
+      if: runner.os == 'Linux'
       run: |
         timeout 30s node examples/load-test-server.js &
         SERVER_PID=$!
         sleep 5
         node examples/run-load-test.js
         kill $SERVER_PID || true
+        
+    - name: Test examples (Windows)  
+      if: runner.os == 'Windows'
+      run: |
+        # Start server in background and get process info
+        $serverProcess = Start-Process -FilePath "node" -ArgumentList "examples/load-test-server.js" -NoNewWindow -PassThru
+        Write-Output "Server started with PID: $($serverProcess.Id)"
+        Start-Sleep -Seconds 5
+        
+        # Run load test
+        node examples/run-load-test.js
+        
+        # Clean up - stop the server process
+        try {
+          Stop-Process -Id $serverProcess.Id -Force -ErrorAction SilentlyContinue
+          Write-Output "Server process stopped"
+        } catch {
+          Write-Output "Server process may have already exited"
+        }
+      shell: powershell

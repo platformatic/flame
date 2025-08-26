@@ -4,7 +4,7 @@ const { spawn } = require('child_process')
 const fs = require('fs')
 const path = require('path')
 
-test('integration: full workflow from profiling to flamegraph generation', async (t) => {
+test('integration: full workflow from profiling to flamegraph generation', { skip: process.platform === 'win32' ? 'SIGUSR2 not supported on Windows' : false }, async (t) => {
   const cliPath = path.join(__dirname, '..', 'bin', 'flame.js')
   const outputDir = __dirname
 
@@ -151,4 +151,69 @@ test('integration: full workflow from profiling to flamegraph generation', async
   }
 
   assert.ok(generateResult.stdout.includes('Flamegraph generated') || generateResult.stderr.length === 0, 'Should indicate successful generation or no errors')
+})
+
+test('integration: Windows compatibility test', { skip: process.platform !== 'win32' ? 'Windows-only test' : false }, async (t) => {
+  const cliPath = path.join(__dirname, '..', 'bin', 'flame.js')
+
+  // Test basic CLI functionality on Windows
+  const helpResult = await new Promise((resolve) => {
+    const helpChild = spawn('node', [cliPath, '--help'], {
+      stdio: 'pipe'
+    })
+
+    let stdout = ''
+    let stderr = ''
+
+    helpChild.stdout.on('data', (data) => {
+      stdout += data.toString()
+    })
+
+    helpChild.stderr.on('data', (data) => {
+      stderr += data.toString()
+    })
+
+    helpChild.on('close', (code) => {
+      resolve({ code, stdout, stderr })
+    })
+  })
+
+  assert.strictEqual(helpResult.code, 0, 'Help command should work on Windows')
+  assert.ok(helpResult.stdout.includes('Usage: flame'), 'Should show usage information')
+
+  // Test toggle command on Windows (should show warning about Windows compatibility)
+  const toggleResult = await new Promise((resolve) => {
+    const toggleChild = spawn('node', [cliPath, 'toggle'], {
+      stdio: 'pipe'
+    })
+
+    let stdout = ''
+    let stderr = ''
+
+    toggleChild.stdout.on('data', (data) => {
+      stdout += data.toString()
+    })
+
+    toggleChild.stderr.on('data', (data) => {
+      stderr += data.toString()
+    })
+
+    toggleChild.on('close', (code) => {
+      resolve({ code, stdout, stderr })
+    })
+
+    // Kill after timeout to prevent hanging
+    setTimeout(() => {
+      toggleChild.kill('SIGKILL')
+      resolve({ code: -1, stdout, stderr })
+    }, 3000)
+  })
+
+  // On Windows, the toggle command should either find processes or show a message
+  assert.ok(
+    toggleResult.stdout.includes('Windows detected') ||
+    toggleResult.stdout.includes('processes') ||
+    toggleResult.stderr.includes('Error'),
+    'Toggle command should handle Windows appropriately'
+  )
 })

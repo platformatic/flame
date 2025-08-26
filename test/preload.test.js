@@ -47,7 +47,7 @@ test('preload script should start without errors', async (t) => {
   assert.ok(result.stdout.includes('Script finished'), 'Should complete the target script')
 })
 
-test('preload script should respond to SIGUSR2', async (t) => {
+test('preload script should respond to SIGUSR2', { skip: process.platform === 'win32' ? 'SIGUSR2 not supported on Windows' : false }, async (t) => {
   const testScript = path.join(__dirname, 'temp-signal-test.js')
   fs.writeFileSync(testScript, `
     console.log('Script started');
@@ -104,7 +104,7 @@ test('preload script should respond to SIGUSR2', async (t) => {
   assert.ok(result.stdout.includes('Starting CPU profiler'), 'Should start profiler on SIGUSR2')
 })
 
-test('preload script should create profile file on double SIGUSR2', async (t) => {
+test('preload script should create profile file on double SIGUSR2', { skip: process.platform === 'win32' ? 'SIGUSR2 not supported on Windows' : false }, async (t) => {
   const testScript = path.join(__dirname, 'temp-profile-test.js')
   fs.writeFileSync(testScript, `
     console.log('Script started');
