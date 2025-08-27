@@ -48,14 +48,14 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
     if (output.includes('READY_FOR_PROFILING')) {
       setTimeout(() => {
         child.kill('SIGUSR2') // Start profiling
-      }, 100)
+      }, 500)
     }
 
     // When work is complete, stop profiling
     if (output.includes('WORK_COMPLETE')) {
       setTimeout(() => {
         child.kill('SIGUSR2') // Stop profiling
-      }, 100)
+      }, 500)
     }
 
     // Capture profile filename
@@ -64,7 +64,7 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
       profileFile = profileMatch[1]
       setTimeout(() => {
         child.kill('SIGTERM') // End the process
-      }, 100)
+      }, 200)
     }
   })
 

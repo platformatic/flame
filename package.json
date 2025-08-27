@@ -12,7 +12,7 @@
     "preload.js"
   ],
   "scripts": {
-    "test": "node --test",
+    "test": "node --test --test-timeout=30000 test/**/*.test.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
   },
