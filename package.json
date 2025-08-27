@@ -29,6 +29,7 @@
     "@datadog/pprof": "^5.9.0"
   },
   "devDependencies": {
+    "@fastify/pre-commit": "^2.2.0",
     "autocannon": "^8.0.0",
     "borp": "^0.20.1",
     "eslint": "^9.0.0",
@@ -36,5 +37,9 @@
   },
   "engines": {
     "node": ">=20.0.0"
-  }
+  },
+  "pre-commit": [
+    "lint",
+    "test"
+  ]
 }
