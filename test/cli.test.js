@@ -117,10 +117,10 @@ test('CLI should handle SIGINT gracefully', async (t) => {
     stderr += data.toString()
   })
 
-  // Wait a bit then send SIGINT
+  // Wait 2 seconds then send SIGINT to give the script time to start
   setTimeout(() => {
     child.kill('SIGINT')
-  }, 100)
+  }, 2000)
 
   // Wait for the process to close
   const [exitCode] = await Promise.race([
@@ -138,12 +138,5 @@ test('CLI should handle SIGINT gracefully', async (t) => {
 
   // Verify the CLI responded to SIGINT by exiting
   assert.notStrictEqual(exitCode, undefined, 'Process should exit after receiving SIGINT')
-  
-  // On Windows, the process might be killed before it can output, so be more lenient
-  if (process.platform === 'win32') {
-    // Just verify the process was started (PID should be in output or script should have tried to start)
-    assert.ok(stdout.length > 0 || stderr.length > 0, 'Process should have produced some output')
-  } else {
-    assert.ok(stdout.includes('Starting'), 'Should have started the script')
-  }
+  assert.ok(stdout.includes('Starting'), 'Should have started the script')
 })
