@@ -8,29 +8,19 @@ on:
 
 jobs:
   ci:
-    name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest]
+        node-version: ["20.x", "22.x", "24.x"]
         include:
-          - name: "Test (Node.js 20.x, Ubuntu)"
-            os: ubuntu-latest
+          - os: ubuntu-latest
             node-version: "20.x"
-          - name: "Test (Node.js 22.x, Ubuntu)"
-            os: ubuntu-latest
-            node-version: "22.x"
-          - name: "Test (Node.js 24.x, Ubuntu)"
-            os: ubuntu-latest
-            node-version: "24.x"
-          - name: "Lint"
-            os: ubuntu-latest
-            node-version: "20.x"
-          - name: "Build & Package"
-            os: ubuntu-latest
-            node-version: "20.x"
+            lint: true
+            build: true
     
     steps:
     - name: Checkout code
@@ -48,18 +38,18 @@ jobs:
       run: npm test
       
     - name: Run linting
-      if: matrix.name == 'Lint'
+      if: matrix.lint
       run: npm run lint
 
     - name: Build and package
-      if: matrix.name == 'Build & Package'
+      if: matrix.build
       run: |
         npm pack --dry-run
         echo "Package size:"
         npm pack --silent | xargs ls -lh
         
     - name: Test CLI installation
-      if: matrix.name == 'Build & Package'
+      if: matrix.build
       run: |
         npm pack
         npm install -g *.tgz
