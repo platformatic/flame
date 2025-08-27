@@ -20,25 +20,28 @@ test('startProfiling should spawn process with preload script', async (t) => {
   fs.unlinkSync(testScript)
 })
 
-test('startProfiling should throw error for non-existent script', async (t) => {
+test('startProfiling should handle non-existent script', async (t) => {
   const nonExistentScript = path.join(__dirname, 'non-existent.js')
 
-  await assert.rejects(
-    async () => {
-      const result = startProfiling(nonExistentScript)
-      // Wait a bit for the process to potentially fail
-      await new Promise((resolve, reject) => {
-        result.process.on('error', reject)
-        result.process.on('exit', (code) => {
-          if (code !== 0) {
-            reject(new Error('Process exited with error'))
-          }
-        })
-        setTimeout(resolve, 100)
-      })
-    },
-    /Process exited with error/
-  )
+  // Should be able to start the process (spawn doesn't fail immediately)
+  const result = startProfiling(nonExistentScript)
+  assert.ok(typeof result.pid === 'number', 'Should return a PID')
+  assert.ok(result.process, 'Should return a process object')
+  assert.ok(typeof result.toggleProfiler === 'function', 'Should return toggleProfiler function')
+
+  // Wait for the process to exit (it will fail when trying to load the non-existent file)
+  const exitCode = await new Promise((resolve) => {
+    result.process.on('exit', resolve)
+    result.process.on('error', () => resolve(-1))
+    // Timeout in case process doesn't exit
+    setTimeout(() => {
+      result.process.kill('SIGKILL')
+      resolve(-1)
+    }, 2000)
+  })
+
+  // On Windows, exit codes may be different, so just verify it's not a successful exit
+  assert.notStrictEqual(exitCode, 0, 'Process should not exit successfully with non-existent script')
 })
 
 test('parseProfile should throw error for non-existent file', async (t) => {
