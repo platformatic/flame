@@ -26,7 +26,9 @@
   "author": "Platformatic Inc. <oss@platformatic.dev> (http://platformatic.dev/)",
   "license": "MIT",
   "dependencies": {
-    "@datadog/pprof": "^5.9.0"
+    "@datadog/pprof": "^5.9.0",
+    "@platformatic/react-pprof": "github:platformatic/react-pprof",
+    "pprof-format": "github:datadog/pprof-format#a1c03e5da852d1f76d149ea1d3fcd660cdb19e4c"
   },
   "devDependencies": {
     "@fastify/pre-commit": "^2.2.0",
