@@ -73,7 +73,7 @@ test('preload script should respond to SIGUSR2', { skip: process.platform === 'w
   // Send SIGUSR2 after a short delay
   setTimeout(() => {
     child.kill('SIGUSR2')
-  }, 200)
+  }, 500)
 
   const result = await new Promise((resolve) => {
     let stdout = ''
@@ -130,8 +130,8 @@ test('preload script should create profile file on double SIGUSR2', { skip: proc
   })
 
   // Send two SIGUSR2 signals to start and stop profiling
-  setTimeout(() => child.kill('SIGUSR2'), 200) // Start
-  setTimeout(() => child.kill('SIGUSR2'), 400) // Stop
+  setTimeout(() => child.kill('SIGUSR2'), 500) // Start
+  setTimeout(() => child.kill('SIGUSR2'), 1000) // Stop
 
   const result = await new Promise((resolve) => {
     let stdout = ''
