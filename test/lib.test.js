@@ -76,4 +76,8 @@ test('generateFlamegraph should create HTML file', async (t) => {
   // Clean up
   if (fs.existsSync(mockProfile)) fs.unlinkSync(mockProfile)
   if (fs.existsSync(outputFile)) fs.unlinkSync(outputFile)
+  
+  // Also clean up the JS file that the CLI creates
+  const jsFile = outputFile.replace('.html', '.js')
+  if (fs.existsSync(jsFile)) fs.unlinkSync(jsFile)
 })

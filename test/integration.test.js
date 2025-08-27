@@ -29,12 +29,14 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
     setTimeout(() => {
       doWork();
       console.log('WORK_COMPLETE');
-      setTimeout(() => process.exit(0), 100);
-    }, 500);
+      // Give more time for profiling signal to be processed
+      setTimeout(() => process.exit(0), 2000);
+    }, 1000);
   `)
 
-  // Step 2: Start profiling the script
-  const child = spawn('node', [cliPath, 'run', workScript], {
+  // Step 2: Start profiling the script using the preload approach
+  const preloadPath = path.join(__dirname, '..', 'preload.js')
+  const child = spawn('node', ['--require', preloadPath, workScript], {
     stdio: 'pipe',
     cwd: outputDir
   })
@@ -58,8 +60,8 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
       }, 500)
     }
 
-    // Capture profile filename
-    const profileMatch = output.match(/CPU profile written to (cpu-profile-[^\\s]+\\.pb)/)
+    // Capture profile filename from preload output
+    const profileMatch = output.match(/CPU profile written to (cpu-profile-[^\s]+\.pb)/)
     if (profileMatch) {
       profileFile = profileMatch[1]
       setTimeout(() => {
@@ -87,9 +89,7 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
 
   // Check if profile was created
   if (!profileFile) {
-    // Clean up and skip test if profiling didn't work (might not have @datadog/pprof)
-    t.skip('Profile generation failed - @datadog/pprof might not be available')
-    return
+    assert.fail('Profile generation failed - no profile file was created. Check if profiling signals were processed correctly.')
   }
 
   const profilePath = path.join(outputDir, profileFile)
@@ -100,10 +100,9 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
   try {
     require.resolve('@platformatic/react-pprof/cli.js')
   } catch (error) {
-    // Clean up and skip if react-pprof CLI is not available
+    // Clean up and fail if react-pprof CLI is not available
     fs.unlinkSync(profilePath)
-    t.skip('@platformatic/react-pprof CLI not available')
-    return
+    assert.fail('@platformatic/react-pprof CLI not available - dependency should be installed')
   }
 
   const htmlFile = path.join(outputDir, 'test-flamegraph.html')
@@ -132,25 +131,29 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
   fs.unlinkSync(profilePath)
 
   if (generateResult.code !== 0) {
-    // The CLI might fail with real profile data due to format issues, but we tested the workflow
-    console.log('Generate command output:', generateResult.stdout, generateResult.stderr)
-    t.skip('Flamegraph generation failed - profile format might be incompatible')
-    return
+    assert.fail(`Flamegraph generation failed with exit code ${generateResult.code}: ${generateResult.stderr || generateResult.stdout}`)
   }
 
-  // Check if HTML file was created
+  // Verify HTML file was created and has content
+  assert.ok(fs.existsSync(htmlFile), 'HTML file should be created')
+  assert.ok(fs.statSync(htmlFile).size > 0, 'HTML file should not be empty')
+  
+  // Verify the output contains expected success messages
+  assert.ok(
+    generateResult.stdout.includes('Generated HTML output') || 
+    generateResult.stdout.includes('HTML'), 
+    'Should indicate successful HTML generation'
+  )
+
+  // Clean up generated files
   if (fs.existsSync(htmlFile)) {
-    assert.ok(fs.statSync(htmlFile).size > 0, 'HTML file should not be empty')
     fs.unlinkSync(htmlFile)
-
-    // Also clean up the generated JS file
-    const jsFile = htmlFile.replace('.html', '.js')
-    if (fs.existsSync(jsFile)) {
-      fs.unlinkSync(jsFile)
-    }
   }
-
-  assert.ok(generateResult.stdout.includes('Flamegraph generated') || generateResult.stderr.length === 0, 'Should indicate successful generation or no errors')
+  
+  const jsFile = htmlFile.replace('.html', '.js')
+  if (fs.existsSync(jsFile)) {
+    fs.unlinkSync(jsFile)
+  }
 })
 
 test('integration: Windows compatibility test', { skip: process.platform !== 'win32' ? 'Windows-only test' : false }, async (t) => {
