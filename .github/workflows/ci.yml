@@ -16,43 +16,27 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: "Test (Node.js 18.x, Ubuntu)"
-            os: ubuntu-latest
-            node-version: "18.x"
-            task: "test"
           - name: "Test (Node.js 20.x, Ubuntu)"
             os: ubuntu-latest
             node-version: "20.x"
-            task: "test"
-            coverage: true
           - name: "Test (Node.js 22.x, Ubuntu)"
             os: ubuntu-latest
             node-version: "22.x"
-            task: "test"
           - name: "Test (Node.js 24.x, Ubuntu)"
             os: ubuntu-latest
             node-version: "24.x"
-            task: "test"
           - name: "Test (Node.js 20.x, Windows)"
             os: windows-latest
             node-version: "20.x"
-            task: "test"
           - name: "Test (Node.js 22.x, Windows)"
             os: windows-latest
             node-version: "22.x"
-            task: "test"
           - name: "Lint"
             os: ubuntu-latest
             node-version: "20.x"
-            task: "lint"
           - name: "Build & Package"
             os: ubuntu-latest
             node-version: "20.x"
-            task: "build"
-          - name: "Integration Tests"
-            os: ubuntu-latest
-            node-version: "20.x"
-            task: "integration"
     
     steps:
     - name: Checkout code
@@ -67,30 +51,26 @@ jobs:
       run: npm install
       
     - name: Run tests
-      if: matrix.task == 'test'
       run: npm test
       
     - name: Run linting
-      if: matrix.task == 'lint'
+      if: matrix.name == 'Lint'
       run: npm run lint
 
     - name: Build and package
-      if: matrix.task == 'build'
+      if: matrix.name == 'Build & Package'
       run: |
         npm pack --dry-run
         echo "Package size:"
         npm pack --silent | xargs ls -lh
         
     - name: Test CLI installation
-      if: matrix.task == 'build'
+      if: matrix.name == 'Build & Package'
       run: |
         npm pack
         npm install -g *.tgz
         flame --help
-      
-    - name: Run integration tests
-      run: npm run test -- test/integration.test.js
-      
+        
     - name: Test examples (Linux)
       if: runner.os == 'Linux'
       run: |

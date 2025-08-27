@@ -12,7 +12,7 @@
     "preload.js"
   ],
   "scripts": {
-    "test": "node --test --test-timeout=30000 test/**/*.test.js",
+    "test": "borp --timeout=30000",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
   },
@@ -30,10 +30,11 @@
   },
   "devDependencies": {
     "autocannon": "^8.0.0",
+    "borp": "^0.20.1",
     "eslint": "^9.0.0",
     "neostandard": "^0.11.6"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   }
 }
