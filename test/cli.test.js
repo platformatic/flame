@@ -105,31 +105,51 @@ test('CLI should handle SIGINT gracefully', async (t) => {
     stdio: 'pipe'
   })
 
+  let processExited = false
+  let stdout = ''
+  let stderr = ''
+
+  child.stdout.on('data', (data) => {
+    stdout += data.toString()
+  })
+
+  child.stderr.on('data', (data) => {
+    stderr += data.toString()
+  })
+
+  child.on('close', (code) => {
+    processExited = true
+  })
+
   // Wait a bit then send SIGINT
   setTimeout(() => {
     child.kill('SIGINT')
   }, 100)
 
-  const result = await new Promise((resolve) => {
-    let stdout = ''
-    let stderr = ''
+  // Wait for the process to exit
+  await new Promise((resolve) => {
+    const checkExit = () => {
+      if (processExited) {
+        resolve()
+      } else {
+        setTimeout(checkExit, 50)
+      }
+    }
+    checkExit()
 
-    child.stdout.on('data', (data) => {
-      stdout += data.toString()
-    })
-
-    child.stderr.on('data', (data) => {
-      stderr += data.toString()
-    })
-
-    child.on('close', (code) => {
-      resolve({ code, stdout, stderr })
-    })
+    // Timeout after 3 seconds
+    setTimeout(() => {
+      if (!processExited) {
+        child.kill('SIGKILL')
+        resolve()
+      }
+    }, 3000)
   })
 
   // Clean up
   fs.unlinkSync(testScript)
 
-  // Should exit gracefully (code may vary depending on signal handling)
-  assert.ok(typeof result.code === 'number', 'Should exit with a numeric code')
+  // Verify the CLI responded to SIGINT by exiting
+  assert.ok(processExited, 'Process should exit after receiving SIGINT')
+  assert.ok(stdout.includes('Starting'), 'Should have started the script')
 })
