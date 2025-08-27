@@ -3,6 +3,7 @@ const assert = require('node:assert')
 const { spawn } = require('child_process')
 const fs = require('fs')
 const path = require('path')
+const { once } = require('node:events')
 
 const cliPath = path.join(__dirname, '..', 'bin', 'flame.js')
 
@@ -105,7 +106,6 @@ test('CLI should handle SIGINT gracefully', async (t) => {
     stdio: 'pipe'
   })
 
-  let processExited = false
   let stdout = ''
   let stderr = ''
 
@@ -117,39 +117,26 @@ test('CLI should handle SIGINT gracefully', async (t) => {
     stderr += data.toString()
   })
 
-  child.on('close', (code) => {
-    processExited = true
-  })
-
   // Wait a bit then send SIGINT
   setTimeout(() => {
     child.kill('SIGINT')
   }, 100)
 
-  // Wait for the process to exit
-  await new Promise((resolve) => {
-    const checkExit = () => {
-      if (processExited) {
-        resolve()
-      } else {
-        setTimeout(checkExit, 50)
-      }
-    }
-    checkExit()
-
-    // Timeout after 3 seconds
-    setTimeout(() => {
-      if (!processExited) {
+  // Wait for the process to close
+  const [exitCode] = await Promise.race([
+    once(child, 'close'),
+    new Promise((resolve) => {
+      setTimeout(() => {
         child.kill('SIGKILL')
-        resolve()
-      }
-    }, 3000)
-  })
+        resolve([-1])
+      }, 3000)
+    })
+  ])
 
   // Clean up
   fs.unlinkSync(testScript)
 
   // Verify the CLI responded to SIGINT by exiting
-  assert.ok(processExited, 'Process should exit after receiving SIGINT')
+  assert.notStrictEqual(exitCode, undefined, 'Process should exit after receiving SIGINT')
   assert.ok(stdout.includes('Starting'), 'Should have started the script')
 })
