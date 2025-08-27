@@ -25,7 +25,7 @@ npm install -g @platformatic/flame
 flame run server.js
 
 # The application runs with CPU profiling active
-# Profile is automatically saved when the process exits
+# Profile and HTML flamegraph are automatically generated when the process exits
 ```
 
 ### Manual Profiling Mode
@@ -93,9 +93,9 @@ const profile = await parseProfile('profile.pb')
 
 ## How It Works
 
-1. **Auto-Start Mode (Default)**: Profiling begins immediately when `flame run` starts your script and saves profile on exit
-2. **Manual Mode**: Use `--manual` flag to require `SIGUSR2` signals for start/stop control  
-3. **Profile Generation**: Profiles are saved as Protocol Buffer files with timestamps
+1. **Auto-Start Mode (Default)**: Profiling begins immediately when `flame run` starts your script
+2. **Auto-Generation on Exit**: Profile (.pb) and interactive HTML flamegraph are automatically created when the process exits
+3. **Manual Mode**: Use `--manual` flag to require `SIGUSR2` signals for start/stop control (no auto-HTML generation)
 4. **Interactive Visualization**: The `@platformatic/react-pprof` library generates interactive WebGL-based HTML flamegraphs
 
 ## Profile Files
@@ -134,9 +134,9 @@ curl http://localhost:3000
 curl http://localhost:3000
 curl http://localhost:3000
 
-# Stop the server (Ctrl-C) to save the profile automatically
-# Then generate flamegraph
-flame generate cpu-profile-*.pb
+# Stop the server (Ctrl-C) to automatically save profile and generate HTML flamegraph
+# Files created: cpu-profile-*.pb and cpu-profile-*.html
+# Open the HTML file in your browser to view the flamegraph!
 ```
 
 **Manual Mode:**
