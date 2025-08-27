@@ -107,14 +107,9 @@ test('CLI should handle SIGINT gracefully', async (t) => {
   })
 
   let stdout = ''
-  let stderr = ''
 
   child.stdout.on('data', (data) => {
     stdout += data.toString()
-  })
-
-  child.stderr.on('data', (data) => {
-    stderr += data.toString()
   })
 
   // Wait 2 seconds then send SIGINT to give the script time to start
