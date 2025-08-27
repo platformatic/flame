@@ -2,6 +2,7 @@ const test = require('node:test')
 const assert = require('node:assert')
 const fs = require('fs')
 const path = require('path')
+const { once } = require('node:events')
 const { startProfiling, parseProfile, generateFlamegraph } = require('../lib/index.js')
 
 test('startProfiling should spawn process with preload script', async (t) => {
@@ -30,15 +31,10 @@ test('startProfiling should handle non-existent script', async (t) => {
   assert.ok(typeof result.toggleProfiler === 'function', 'Should return toggleProfiler function')
 
   // Wait for the process to exit (it will fail when trying to load the non-existent file)
-  const exitCode = await new Promise((resolve) => {
-    result.process.on('exit', resolve)
-    result.process.on('error', () => resolve(-1))
-    // Timeout in case process doesn't exit
-    setTimeout(() => {
-      result.process.kill('SIGKILL')
-      resolve(-1)
-    }, 2000)
-  })
+  const [exitCode] = await Promise.race([
+    once(result.process, 'exit'),
+    once(result.process, 'error').then(() => [-1])
+  ])
 
   // On Windows, exit codes may be different, so just verify it's not a successful exit
   assert.notStrictEqual(exitCode, 0, 'Process should not exit successfully with non-existent script')
