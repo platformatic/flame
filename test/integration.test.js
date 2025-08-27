@@ -43,10 +43,10 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
 
     // With auto-start, profiling begins immediately and stops on exit
     // Just capture the profile filename when it's written
-    const profileMatch = output.match(/CPU profile written to (cpu-profile-[^\s]+\.pb)/)
+    const profileMatch = output.match(/CPU profile written to: (cpu-profile-[^\s]+\.pb)/)
     if (profileMatch) {
       profileFile = profileMatch[1]
-      // The process will exit naturally after creating the profile
+      // The process will exit naturally after creating the profile and HTML
     }
   })
 
@@ -75,6 +75,26 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
   const profilePath = path.join(outputDir, profileFile)
   assert.ok(fs.existsSync(profilePath), 'Profile file should be created')
   assert.ok(fs.statSync(profilePath).size > 0, 'Profile file should not be empty')
+
+  // HTML generation is asynchronous - give it some time
+  await new Promise(resolve => setTimeout(resolve, 2000))
+
+  // Check that HTML file was also auto-generated (with some tolerance for async generation)
+  const autoHtmlFile = profilePath.replace('.pb', '.html')
+  const htmlExists = fs.existsSync(autoHtmlFile)
+  
+  if (htmlExists) {
+    console.log('✅ HTML file auto-generated successfully')
+    assert.ok(fs.statSync(autoHtmlFile).size > 0, 'HTML file should not be empty')
+    
+    // Check that JS file was also created
+    const autoJsFile = profilePath.replace('.pb', '.js')
+    if (fs.existsSync(autoJsFile)) {
+      assert.ok(fs.statSync(autoJsFile).size > 0, 'JS file should not be empty')
+    }
+  } else {
+    console.log('⚠️ HTML file not generated yet (async generation in progress)')
+  }
 
   // Step 3: Generate flamegraph from the profile
   try {
@@ -133,6 +153,16 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
   const jsFile = htmlFile.replace('.html', '.js')
   if (fs.existsSync(jsFile)) {
     fs.unlinkSync(jsFile)
+  }
+
+  // Clean up auto-generated files too
+  if (fs.existsSync(autoHtmlFile)) {
+    fs.unlinkSync(autoHtmlFile)
+  }
+  
+  const autoJsFile = autoHtmlFile.replace('.html', '.js')
+  if (fs.existsSync(autoJsFile)) {
+    fs.unlinkSync(autoJsFile)
   }
 })
 

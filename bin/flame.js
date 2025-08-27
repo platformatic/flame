@@ -91,6 +91,8 @@ async function main () {
         console.log(`🔥 Started profiling process ${pid}`)
         if (autoStart) {
           console.log('🔥 CPU profiling is active and will generate profile on exit')
+          console.log('🔥 Profile (.pb) and interactive HTML flamegraph will be auto-generated')
+          console.log('🔥 Generated files will be saved in the current directory')
           console.log('Send SIGUSR2 to manually toggle profiling:')
         } else {
           console.log('📋 Manual profiling mode - send SIGUSR2 to start profiling:')
@@ -102,10 +104,11 @@ async function main () {
         process.on('SIGINT', () => {
           console.log('\n🔥 Stopping flame profiler...')
           childProcess.kill('SIGTERM')
+          // Give more time for HTML generation to complete
           setTimeout(() => {
             childProcess.kill('SIGKILL')
             process.exit(0)
-          }, 1000)
+          }, 5000) // Increased from 1000ms to 5000ms
         })
 
         // Exit when child process exits
