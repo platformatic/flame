@@ -4,10 +4,10 @@
 
 ## Features
 
-- **Easy Profiling**: Instrument any Node.js application with a simple preload script
-- **Signal-based Control**: Start/stop profiling using `SIGUSR2` signals
-- **Flamegraph Generation**: Generate interactive HTML flamegraphs from pprof files
-- **CLI Interface**: Command-line tool for profiling and visualization
+- **Auto-Start Profiling**: CPU profiling starts immediately when using `flame run` (default behavior)
+- **Manual Control**: Optional manual mode with signal-based control using `SIGUSR2`
+- **Interactive Flamegraphs**: Generate interactive HTML flamegraphs with WebGL visualization
+- **CLI Interface**: Simple command-line tool for profiling and visualization
 - **Zero Config**: Works out of the box with sensible defaults
 
 ## Installation
@@ -18,11 +18,21 @@ npm install -g @platformatic/flame
 
 ## Quick Start
 
-### Profile a Node.js Script
+### Profile a Node.js Script (Auto-Start Mode)
 
 ```bash
-# Start profiling your application
+# Start profiling your application (profiling begins immediately)
 flame run server.js
+
+# The application runs with CPU profiling active
+# Profile is automatically saved when the process exits
+```
+
+### Manual Profiling Mode
+
+```bash
+# Start profiling in manual mode (requires signals to start)
+flame run --manual server.js
 
 # In another terminal, toggle profiling on/off
 kill -USR2 <PID>
@@ -53,6 +63,7 @@ Commands:
 
 Options:
   -o, --output <file>    Output HTML file (for generate command)
+  -m, --manual          Manual profiling mode (require SIGUSR2 to start)
   -h, --help            Show help message
   -v, --version         Show version number
 ```
@@ -62,15 +73,18 @@ Options:
 ```javascript
 const { startProfiling, generateFlamegraph, parseProfile } = require('@platformatic/flame')
 
-// Start profiling a script
-const { pid, toggleProfiler } = startProfiling('server.js', ['--port', '3000'])
+// Start profiling a script with auto-start (default)
+const { pid, toggleProfiler } = startProfiling('server.js', ['--port', '3000'], { autoStart: true })
+
+// Or start in manual mode
+const { pid, toggleProfiler } = startProfiling('server.js', ['--port', '3000'], { autoStart: false })
 
 console.log(`Started profiling process ${pid}`)
 
-// Toggle profiling programmatically
+// Toggle profiling programmatically (useful in manual mode)
 toggleProfiler()
 
-// Generate flamegraph from pprof file
+// Generate interactive flamegraph from pprof file
 await generateFlamegraph('profile.pb.gz', 'flamegraph.html')
 
 // Parse profile data
@@ -79,10 +93,10 @@ const profile = await parseProfile('profile.pb')
 
 ## How It Works
 
-1. **Preload Script**: The package includes a preload script that uses `@datadog/pprof` to enable CPU profiling
-2. **Signal Handling**: Profiling is controlled via `SIGUSR2` signals - first signal starts profiling, second signal stops and saves
+1. **Auto-Start Mode (Default)**: Profiling begins immediately when `flame run` starts your script and saves profile on exit
+2. **Manual Mode**: Use `--manual` flag to require `SIGUSR2` signals for start/stop control  
 3. **Profile Generation**: Profiles are saved as Protocol Buffer files with timestamps
-4. **Visualization**: The `@platformatic/react-pprof` library generates interactive HTML flamegraphs
+4. **Interactive Visualization**: The `@platformatic/react-pprof` library generates interactive WebGL-based HTML flamegraphs
 
 ## Profile Files
 
@@ -110,21 +124,34 @@ app.get('/', (req, res) => {
 app.listen(3000)
 ```
 
+**Auto-Start Mode (Recommended):**
 ```bash
-# Profile the Express app
+# Profile the Express app (profiling starts immediately)
 flame run server.js
 
-# In another terminal, make some requests
+# In another terminal, make some requests while profiling is active
+curl http://localhost:3000
+curl http://localhost:3000
 curl http://localhost:3000
 
-# Toggle profiling to capture the request handling
+# Stop the server (Ctrl-C) to save the profile automatically
+# Then generate flamegraph
+flame generate cpu-profile-*.pb
+```
+
+**Manual Mode:**
+```bash
+# Profile the Express app in manual mode
+flame run --manual server.js
+
+# In another terminal, start profiling
 flame toggle
 
-# Make more requests
+# Make some requests
 curl http://localhost:3000
 curl http://localhost:3000
 
-# Stop profiling
+# Stop profiling and save profile
 flame toggle
 
 # Generate flamegraph

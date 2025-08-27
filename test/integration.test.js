@@ -17,26 +17,21 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
     }
     
     function doWork() {
-      console.log('Starting work...');
-      const result = fibonacci(25);
+      console.log('Starting CPU intensive work...');
+      const result = fibonacci(30); // More work to make profiling meaningful
       console.log('Work result:', result);
+      console.log('Work complete');
     }
     
-    // Signal when ready for profiling
-    console.log('READY_FOR_PROFILING');
+    // Do work immediately - profiling is already started by flame run
+    doWork();
     
-    // Do work for profiling
-    setTimeout(() => {
-      doWork();
-      console.log('WORK_COMPLETE');
-      // Give more time for profiling signal to be processed
-      setTimeout(() => process.exit(0), 2000);
-    }, 1000);
+    // Exit cleanly to trigger profile generation
+    process.exit(0);
   `)
 
-  // Step 2: Start profiling the script using the preload approach
-  const preloadPath = path.join(__dirname, '..', 'preload.js')
-  const child = spawn('node', ['--require', preloadPath, workScript], {
+  // Step 2: Start profiling the script using flame run command (auto-starts profiling)
+  const child = spawn('node', [cliPath, 'run', workScript], {
     stdio: 'pipe',
     cwd: outputDir
   })
@@ -46,27 +41,12 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
   child.stdout.on('data', (data) => {
     const output = data.toString()
 
-    // When script is ready, start profiling
-    if (output.includes('READY_FOR_PROFILING')) {
-      setTimeout(() => {
-        child.kill('SIGUSR2') // Start profiling
-      }, 500)
-    }
-
-    // When work is complete, stop profiling
-    if (output.includes('WORK_COMPLETE')) {
-      setTimeout(() => {
-        child.kill('SIGUSR2') // Stop profiling
-      }, 500)
-    }
-
-    // Capture profile filename from preload output
+    // With auto-start, profiling begins immediately and stops on exit
+    // Just capture the profile filename when it's written
     const profileMatch = output.match(/CPU profile written to (cpu-profile-[^\s]+\.pb)/)
     if (profileMatch) {
       profileFile = profileMatch[1]
-      setTimeout(() => {
-        child.kill('SIGTERM') // End the process
-      }, 200)
+      // The process will exit naturally after creating the profile
     }
   })
 
@@ -74,14 +54,14 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
     console.error('Server error:', data.toString())
   })
 
-  // Wait for the profiling process to complete
+  // Wait for the profiling process to complete (should be much faster with auto-start)
   await new Promise((resolve) => {
     child.on('close', resolve)
-    // Timeout after 5 seconds
+    // Timeout after 10 seconds (longer to allow for profile generation)
     setTimeout(() => {
       child.kill('SIGKILL')
       resolve()
-    }, 5000)
+    }, 10000)
   })
 
   // Clean up the work script
@@ -137,11 +117,11 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
   // Verify HTML file was created and has content
   assert.ok(fs.existsSync(htmlFile), 'HTML file should be created')
   assert.ok(fs.statSync(htmlFile).size > 0, 'HTML file should not be empty')
-  
+
   // Verify the output contains expected success messages
   assert.ok(
-    generateResult.stdout.includes('Generated HTML output') || 
-    generateResult.stdout.includes('HTML'), 
+    generateResult.stdout.includes('Generated HTML output') ||
+    generateResult.stdout.includes('HTML'),
     'Should indicate successful HTML generation'
   )
 
@@ -149,7 +129,7 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
   if (fs.existsSync(htmlFile)) {
     fs.unlinkSync(htmlFile)
   }
-  
+
   const jsFile = htmlFile.replace('.html', '.js')
   if (fs.existsSync(jsFile)) {
     fs.unlinkSync(jsFile)

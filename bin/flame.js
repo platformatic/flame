@@ -23,6 +23,10 @@ const { values: args, positionals } = parseArgs({
     version: {
       type: 'boolean',
       short: 'v'
+    },
+    manual: {
+      type: 'boolean',
+      short: 'm'
     }
   },
   allowPositionals: true
@@ -45,11 +49,13 @@ Commands:
 Options:
   -o, --output <file>    Output HTML file (for generate command)
   -p, --profile <file>   Profile file to use (for run command)
+  -m, --manual          Manual profiling mode (require SIGUSR2 to start)
   -h, --help            Show this help message
   -v, --version         Show version number
 
 Examples:
-  flame run server.js
+  flame run server.js              # Auto-start profiling
+  flame run -m server.js           # Manual profiling (send SIGUSR2 to start)
   flame generate profile.pb.gz
   flame generate -o flamegraph.html profile.pb.gz
 `)
@@ -79,12 +85,17 @@ async function main () {
         }
 
         const scriptArgs = positionals.slice(2)
-        const { pid, process: childProcess } = startProfiling(script, scriptArgs)
+        const autoStart = !args.manual
+        const { pid, process: childProcess } = startProfiling(script, scriptArgs, { autoStart })
 
-        console.log(`Started profiling process ${pid}`)
-        console.log('Send SIGUSR2 to toggle profiling:')
+        console.log(`🔥 Started profiling process ${pid}`)
+        if (autoStart) {
+          console.log('🔥 CPU profiling is active and will generate profile on exit')
+          console.log('Send SIGUSR2 to manually toggle profiling:')
+        } else {
+          console.log('📋 Manual profiling mode - send SIGUSR2 to start profiling:')
+        }
         console.log(`  kill -USR2 ${pid}`)
-        console.log('Or use: flame toggle')
         console.log('Press CTRL-C to stop profiling and exit')
 
         // Handle CTRL-C gracefully
