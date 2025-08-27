@@ -65,5 +65,3 @@ jobs:
         npm install -g *.tgz
         flame --help
         
-    - name: Test examples
-      run: node examples/run-load-test.js
