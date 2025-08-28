@@ -9,7 +9,7 @@
  * Features:
  * - Multiple endpoints with different CPU loads (light, medium, heavy)
  * - Realistic computational workloads using simple for loops
- * - Comprehensive plugin integration (CORS, Helmet, Compression, Rate Limiting)
+ * - Comprehensive plugin integration (CORS, Helmet, Compression)
  * - Detailed timing and metadata in responses
  * - Configurable server settings
  * - Health check endpoint for monitoring
@@ -99,14 +99,6 @@ export async function createBenchmarkApp (config = {}) {
   await app.register(import('@fastify/compress'), {
     global: true,
     encodings: ['gzip', 'deflate']
-  })
-
-  // Rate limiting to simulate production constraints
-  await app.register(import('@fastify/rate-limit'), {
-    max: 1000,
-    timeWindow: '1 minute',
-    // More lenient for benchmarking
-    skipOnError: true
   })
 
   // Store server start time for uptime calculation
@@ -237,6 +229,67 @@ export async function createBenchmarkApp (config = {}) {
     }
   })
 
+  // Mixed computational load endpoint - combines all three computations
+  app.get('/mixed', {
+    schema: {
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            endpoint: { type: 'string' },
+            computations: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  type: { type: 'string' },
+                  iterations: { type: 'number' },
+                  result: { type: 'number' },
+                  computeTime: { type: 'number' }
+                }
+              }
+            },
+            totalComputeTime: { type: 'number' },
+            totalIterations: { type: 'number' },
+            timestamp: { type: 'string' },
+            requestId: { type: 'string' }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const computations = [
+      { type: 'light', iterations: 1000 },
+      { type: 'medium', iterations: 50000 },
+      { type: 'heavy', iterations: 500000 }
+    ]
+
+    const results = []
+    let totalComputeTime = 0
+    let totalIterations = 0
+
+    for (const comp of computations) {
+      const computation = performComputation(comp.iterations)
+      results.push({
+        type: comp.type,
+        iterations: comp.iterations,
+        result: computation.result,
+        computeTime: computation.computeTime
+      })
+      totalComputeTime += computation.computeTime
+      totalIterations += comp.iterations
+    }
+
+    return {
+      endpoint: 'mixed',
+      computations: results,
+      totalComputeTime: Math.round(totalComputeTime * 100) / 100,
+      totalIterations,
+      timestamp: new Date().toISOString(),
+      requestId: request.id
+    }
+  })
+
   // Error handling
   app.setErrorHandler(async (error, request, reply) => {
     request.log.error(error)
@@ -280,21 +333,6 @@ async function main () {
 
     const app = await createBenchmarkApp(config)
 
-    // Graceful shutdown handling
-    const gracefulShutdown = async (signal) => {
-      app.log.info(`Received ${signal}, shutting down gracefully`)
-      try {
-        await app.close()
-        process.exit(0)
-      } catch (err) {
-        app.log.error('Error during shutdown:', err)
-        process.exit(1)
-      }
-    }
-
-    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
-    process.on('SIGINT', () => gracefulShutdown('SIGINT'))
-
     // Start server
     await app.listen({
       port: config.port,
@@ -312,6 +350,7 @@ Endpoints:
   GET /light  - Light computational load (~1ms)
   GET /medium - Medium computational load (~10-50ms)  
   GET /heavy  - Heavy computational load (~100-500ms)
+  GET /mixed  - Combined light + medium + heavy computation
 
 Usage for profiling comparison:
   1. Baseline: Run without profiling
