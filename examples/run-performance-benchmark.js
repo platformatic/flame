@@ -22,6 +22,8 @@ const autocannon = require('autocannon')
 const { spawn } = require('child_process')
 const path = require('path')
 const fs = require('fs')
+const { once } = require('events')
+const { setTimeout: sleep } = require('timers/promises')
 
 // Configuration
 const apps = [
@@ -190,14 +192,15 @@ async function runAllBenchmarks (app) {
 async function stopServer (serverProcess, withProfiling = false) {
   console.log('\n🛑 Stopping server...')
 
-  if (withProfiling) {
-    console.log('   Stopping profiler and generating flamegraph...')
-    serverProcess.kill('SIGUSR2') // Stop profiling
-    await wait(1000)
-  }
-
   serverProcess.kill('SIGINT')
-  await wait(2000)
+
+  await Promise.race([
+    once(serverProcess, 'close'),
+    sleep(10000).then(() => {
+      console.log('   Server did not shut down in time, forcing termination...')
+      serverProcess.kill('SIGKILL')
+    })
+  ])
 
   console.log('   ✅ Server stopped')
 }
