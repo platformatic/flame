@@ -37,7 +37,6 @@ async function runLoadTest () {
   })
 
   console.log('\n2. Starting profiling...')
-  serverProcess.kill('SIGUSR2')
   await new Promise(resolve => setTimeout(resolve, 500))
 
   console.log('\n3. Running load test...')
@@ -90,6 +89,7 @@ async function runLoadTest () {
   }
 
   console.log('\n✅ Load test complete!')
+  process.exit(0)
 }
 
 if (require.main === module) {
