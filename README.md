@@ -172,15 +172,6 @@ Two comprehensive benchmark applications are included for testing profiling over
 
 #### Running Benchmark Apps
 ```bash
-# Run both Express and Fastify apps sequentially  
-node examples/run-benchmark-apps.js
-
-# Run only Express app
-node examples/run-benchmark-apps.js express
-
-# Run only Fastify app  
-node examples/run-benchmark-apps.js fastify
-
 # Run individual apps without profiling
 node examples/express-benchmark-app.js
 node examples/fastify-benchmark-app.js
@@ -199,24 +190,7 @@ Both apps include:
 
 ### Load Testing Example
 
-The package includes a complete load testing example using `autocannon`:
-
-```bash
-# Install dependencies (if you cloned the repo)
-npm install
-
-# Run the load test example
-node examples/run-load-test.js
-```
-
-This example will:
-1. Start a test server with flame profiling enabled
-2. Begin CPU profiling
-3. Run a 10-second load test with multiple endpoints
-4. Stop profiling and save the profile
-5. Show you how to generate the flamegraph
-
-You can also run each step manually:
+You can run load tests manually:
 
 ```bash
 # Terminal 1: Start the test server with profiling

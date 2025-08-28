@@ -233,7 +233,6 @@ node examples/run-express-benchmark.js
 - `run-express-benchmark.js` - Automated benchmark runner
 - `README.md` - This documentation
 - `load-test-server.js` - Original basic HTTP server (legacy)
-- `run-load-test.js` - Original load test runner (legacy)
 
 ## Dependencies
 
