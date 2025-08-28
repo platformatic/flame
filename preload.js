@@ -12,20 +12,20 @@ function generateFlamegraph (pprofPath, outputPath) {
     // Find the flame CLI
     const flameBinPath = path.resolve(__dirname, 'bin', 'flame.js')
     const args = [flameBinPath, 'generate', '-o', outputPath, pprofPath]
-    
+
     const child = spawn('node', args, { stdio: 'pipe' })
-    
+
     let stdout = ''
     let stderr = ''
-    
+
     child.stdout.on('data', (data) => {
       stdout += data.toString()
     })
-    
+
     child.stderr.on('data', (data) => {
       stderr += data.toString()
     })
-    
+
     child.on('close', (code) => {
       if (code === 0) {
         resolve({ stdout, stderr })
@@ -33,7 +33,7 @@ function generateFlamegraph (pprofPath, outputPath) {
         reject(new Error(`Flamegraph generation failed: ${stderr || stdout}`))
       }
     })
-    
+
     child.on('error', (error) => {
       reject(error)
     })
@@ -82,8 +82,8 @@ async function stopProfilerAndSave (generateHtml = false) {
     if (generateHtml) {
       // Auto-generate HTML flamegraph on exit
       const htmlFilename = filename.replace('.pb', '.html')
-      console.log(`🔥 Generating flamegraph...`)
-      
+      console.log('🔥 Generating flamegraph...')
+
       try {
         await generateFlamegraph(filename, htmlFilename)
         console.log(`🔥 Flamegraph generated: ${htmlFilename}`)
@@ -104,13 +104,13 @@ async function stopProfilerAndSave (generateHtml = false) {
 
 function generateHtmlAsync (filename) {
   const htmlFilename = filename.replace('.pb', '.html')
-  console.log(`🔥 Generating flamegraph...`)
+  console.log('🔥 Generating flamegraph...')
   console.log(`🔥 Flamegraph will be saved as: ${htmlFilename}`)
   console.log(`🔥 Open file://${path.resolve(htmlFilename)} in your browser once generation completes`)
-  
+
   generateFlamegraph(filename, htmlFilename)
     .then(() => {
-      console.log(`🔥 Flamegraph generation completed`)
+      console.log('🔥 Flamegraph generation completed')
     })
     .catch(error => {
       console.error('Warning: Failed to generate flamegraph:', error.message)
