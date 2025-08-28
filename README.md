@@ -201,7 +201,18 @@ Based on comprehensive benchmarks with 10 concurrent connections over 10 seconds
 | Heavy Computation | High | 295 req/s | 291 req/s | +1.3% | +1.4% |
 | Mixed Computation | Very High | 56 req/s | 53 req/s | +5.2% | +5.8% |
 
-**Summary:** Average throughput overhead of **2.7%** and latency overhead of **3.9%**
+**Express Summary:** Average throughput overhead of **2.7%** and latency overhead of **3.9%**
+
+**Fastify Framework:**
+| Endpoint | Load Level | Without Profiling | With Profiling | Throughput Overhead | Latency Overhead |
+|----------|------------|-------------------|----------------|--------------------|--------------------|
+| Health Check | Minimal | 41,174 req/s | 38,747 req/s | +5.9% | 0.0% |
+| Light Computation | Low | 35,056 req/s | 32,847 req/s | +6.3% | 0.0% |
+| Medium Computation | Moderate | 3,235 req/s | 3,126 req/s | +3.4% | +4.2% |
+| Heavy Computation | High | 345 req/s | 336 req/s | +2.6% | +2.6% |
+| Mixed Computation | Very High | 311 req/s | 304 req/s | +2.3% | +2.3% |
+
+**Fastify Summary:** Average throughput overhead of **4.1%** and latency overhead of **1.8%**
 
 *CSV data is automatically generated when running `node examples/run-performance-benchmark.js` for further analysis.*
 
