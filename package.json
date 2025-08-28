@@ -14,7 +14,8 @@
   "scripts": {
     "test": "borp --timeout=30000",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "clean": "rm -f cpu-profile-*.* && rm -f test/cpu-profile-*.* && rm -f examples/cpu-profile-*.*"
   },
   "keywords": [
     "pprof",
