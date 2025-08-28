@@ -2,14 +2,14 @@
 
 /**
  * Express.js Benchmark Application for Flame Profiling Overhead Testing
- * 
+ *
  * This application provides multiple endpoints with different computational loads
  * to measure the overhead introduced by the flame profiling solution.
- * 
+ *
  * Usage:
  *   Without profiling: node express-benchmark-app.js
  *   With profiling:    flame run express-benchmark-app.js
- * 
+ *
  * The goal is to compare performance metrics (requests/sec, latency, CPU usage)
  * between profiled and non-profiled runs to quantify profiling overhead.
  */
@@ -47,10 +47,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' })) // URL-encoded pa
  * Light computational load - ~1000 iterations
  * Simulates basic data processing operations
  */
-function lightComputation() {
+function lightComputation () {
   const startTime = process.hrtime.bigint()
   const data = []
-  
+
   // Simple array operations with 1000 iterations
   for (let i = 0; i < 1000; i++) {
     data.push({
@@ -59,14 +59,14 @@ function lightComputation() {
       timestamp: Date.now()
     })
   }
-  
+
   // Basic data manipulation
   const sum = data.reduce((acc, item) => acc + item.value, 0)
   const average = sum / data.length
-  
+
   const endTime = process.hrtime.bigint()
   const executionTime = Number(endTime - startTime) / 1000000 // Convert to milliseconds
-  
+
   return {
     type: 'light',
     iterations: 1000,
@@ -82,33 +82,33 @@ function lightComputation() {
  * Medium computational load - ~50000 iterations
  * Simulates moderate data processing with string operations
  */
-function mediumComputation() {
+function mediumComputation () {
   const startTime = process.hrtime.bigint()
   const data = []
   const strings = []
-  
+
   // More intensive operations with 50000 iterations
   for (let i = 0; i < 50000; i++) {
     const value = Math.pow(i, 1.5) + Math.sin(i / 1000)
     data.push({
       id: i,
-      value: value,
+      value,
       squared: value * value,
       stringified: `item_${i}_${Math.floor(value)}`
     })
-    
+
     // String operations for additional CPU load
     strings.push(data[i].stringified.toUpperCase().split('_').join('-'))
   }
-  
+
   // Data aggregation operations
   const sum = data.reduce((acc, item) => acc + item.value, 0)
   const squaredSum = data.reduce((acc, item) => acc + item.squared, 0)
   const stringLength = strings.reduce((acc, str) => acc + str.length, 0)
-  
+
   const endTime = process.hrtime.bigint()
   const executionTime = Number(endTime - startTime) / 1000000
-  
+
   return {
     type: 'medium',
     iterations: 50000,
@@ -125,22 +125,22 @@ function mediumComputation() {
  * Heavy computational load - ~500000 iterations
  * Simulates intensive data processing with complex operations
  */
-function heavyComputation() {
+function heavyComputation () {
   const startTime = process.hrtime.bigint()
   const results = {
     primes: [],
     squares: [],
     stats: {}
   }
-  
+
   let sum = 0
   let primeCount = 0
-  
+
   // Intensive computation with 500000 iterations
   for (let i = 2; i < 500000; i++) {
     const value = i * 1.1 + Math.cos(i / 10000)
     sum += value
-    
+
     // Simple prime check for additional CPU work (every 1000th number)
     if (i % 1000 === 0) {
       let isPrime = true
@@ -156,7 +156,7 @@ function heavyComputation() {
         primeCount++
       }
     }
-    
+
     // Store squares for numbers divisible by 10000
     if (i % 10000 === 0) {
       results.squares.push({
@@ -166,17 +166,17 @@ function heavyComputation() {
       })
     }
   }
-  
+
   results.stats = {
     totalSum: Math.round(sum * 100) / 100,
     average: Math.round((sum / 499998) * 100) / 100, // 500000 - 2 (starting from 2)
-    primeCount: primeCount,
+    primeCount,
     squareCount: results.squares.length
   }
-  
+
   const endTime = process.hrtime.bigint()
   const executionTime = Number(endTime - startTime) / 1000000
-  
+
   return {
     type: 'heavy',
     iterations: 499998,
@@ -268,18 +268,18 @@ app.get('/mixed', (req, res) => {
       medium: mediumComputation(),
       heavy: heavyComputation()
     }
-    
-    const totalExecutionTime = results.light.executionTimeMs + 
-                              results.medium.executionTimeMs + 
+
+    const totalExecutionTime = results.light.executionTimeMs +
+                              results.medium.executionTimeMs +
                               results.heavy.executionTimeMs
-    
+
     res.json({
       success: true,
       computations: results,
       summary: {
         totalExecutionTimeMs: Math.round(totalExecutionTime * 100) / 100,
-        totalIterations: results.light.iterations + 
-                        results.medium.iterations + 
+        totalIterations: results.light.iterations +
+                        results.medium.iterations +
                         results.heavy.iterations
       },
       message: 'Mixed computation completed successfully'
@@ -298,7 +298,7 @@ app.get('/mixed', (req, res) => {
 app.get('/batch/:type/:count?', (req, res) => {
   const { type, count = 5 } = req.params
   const batchCount = Math.min(Math.max(parseInt(count), 1), 20) // Limit between 1-20
-  
+
   try {
     let computationFunction
     switch (type) {
@@ -319,22 +319,22 @@ app.get('/batch/:type/:count?', (req, res) => {
           timestamp: new Date().toISOString()
         })
     }
-    
+
     const startTime = process.hrtime.bigint()
     const results = []
-    
+
     for (let i = 0; i < batchCount; i++) {
       results.push(computationFunction())
     }
-    
+
     const endTime = process.hrtime.bigint()
     const totalExecutionTime = Number(endTime - startTime) / 1000000
-    
+
     res.json({
       success: true,
       batchType: type,
-      batchCount: batchCount,
-      results: results,
+      batchCount,
+      results,
       summary: {
         totalBatchTimeMs: Math.round(totalExecutionTime * 100) / 100,
         avgExecutionTimeMs: Math.round((totalExecutionTime / batchCount) * 100) / 100,
@@ -416,13 +416,13 @@ const server = app.listen(config.port, config.host, () => {
   console.log(`💻 Platform: ${process.platform}`)
   console.log('')
   console.log('📋 Available endpoints:')
-  console.log(`   GET  /           - API documentation`)
-  console.log(`   GET  /health     - Health check (minimal load)`)
-  console.log(`   GET  /light      - Light computation (~1K iterations)`)
-  console.log(`   GET  /medium     - Medium computation (~50K iterations)`)
-  console.log(`   GET  /heavy      - Heavy computation (~500K iterations)`)
-  console.log(`   GET  /mixed      - Mixed computation (all types)`)
-  console.log(`   GET  /batch/:type/:count - Batch processing`)
+  console.log('   GET  /           - API documentation')
+  console.log('   GET  /health     - Health check (minimal load)')
+  console.log('   GET  /light      - Light computation (~1K iterations)')
+  console.log('   GET  /medium     - Medium computation (~50K iterations)')
+  console.log('   GET  /heavy      - Heavy computation (~500K iterations)')
+  console.log('   GET  /mixed      - Mixed computation (all types)')
+  console.log('   GET  /batch/:type/:count - Batch processing')
   console.log('')
   console.log('🔬 Benchmarking Instructions:')
   console.log('   Without profiling: node express-benchmark-app.js')

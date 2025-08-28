@@ -1,11 +1,11 @@
 /**
  * Fastify Benchmark Application
- * 
+ *
  * A comprehensive Fastify application designed for benchmarking the overhead
  * of CPU profiling solutions like flame. This application provides multiple
  * endpoints with varying computational loads to measure profiling impact
  * on response times and throughput.
- * 
+ *
  * Features:
  * - Multiple endpoints with different CPU loads (light, medium, heavy)
  * - Realistic computational workloads using simple for loops
@@ -13,7 +13,7 @@
  * - Detailed timing and metadata in responses
  * - Configurable server settings
  * - Health check endpoint for monitoring
- * 
+ *
  * Usage:
  *   const { createBenchmarkApp } = require('./fastify-benchmark-app.js');
  *   const app = await createBenchmarkApp({ port: 3000 });
@@ -25,31 +25,31 @@ import fastify from 'fastify'
 /**
  * Performs a simple computational task with a specified number of iterations.
  * This simulates realistic CPU work for benchmarking purposes.
- * 
+ *
  * @param {number} iterations - Number of loop iterations to perform
  * @returns {object} - Object containing the computation result and timing
  */
-function performComputation(iterations) {
+function performComputation (iterations) {
   const startTime = process.hrtime.bigint()
-  
+
   let result = 0
   let temp = 1
-  
+
   // Simple mathematical operations that provide consistent CPU load
   for (let i = 0; i < iterations; i++) {
     temp = (temp * 1.1) % 1000000
     result += Math.floor(temp)
-    
+
     // Add some additional operations for more realistic workload
     if (i % 100 === 0) {
       result = result % 1000000
     }
   }
-  
+
   const endTime = process.hrtime.bigint()
   const computeTimeNs = endTime - startTime
   const computeTimeMs = Number(computeTimeNs) / 1000000
-  
+
   return {
     result: Math.floor(result),
     computeTime: Math.round(computeTimeMs * 100) / 100 // Round to 2 decimal places
@@ -58,17 +58,15 @@ function performComputation(iterations) {
 
 /**
  * Creates and configures a Fastify application with benchmark endpoints
- * 
+ *
  * @param {object} config - Configuration options
  * @param {number} config.port - Server port (default: 3000)
  * @param {string} config.host - Server host (default: '0.0.0.0')
  * @param {object} config.logger - Logger configuration
  * @returns {Promise<FastifyInstance>} - Configured Fastify application
  */
-export async function createBenchmarkApp(config = {}) {
+export async function createBenchmarkApp (config = {}) {
   const {
-    port = 3000,
-    host = '0.0.0.0',
     logger = { level: 'info' }
   } = config
 
@@ -80,7 +78,7 @@ export async function createBenchmarkApp(config = {}) {
   })
 
   // Register plugins for realistic application setup
-  
+
   // CORS support for cross-origin requests
   await app.register(import('@fastify/cors'), {
     origin: true,
@@ -132,7 +130,7 @@ export async function createBenchmarkApp(config = {}) {
     }
   }, async (request, reply) => {
     const memoryUsage = process.memoryUsage()
-    
+
     return {
       status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -166,7 +164,7 @@ export async function createBenchmarkApp(config = {}) {
   }, async (request, reply) => {
     const iterations = 1000
     const computation = performComputation(iterations)
-    
+
     return {
       endpoint: 'light',
       iterations,
@@ -197,7 +195,7 @@ export async function createBenchmarkApp(config = {}) {
   }, async (request, reply) => {
     const iterations = 50000
     const computation = performComputation(iterations)
-    
+
     return {
       endpoint: 'medium',
       iterations,
@@ -228,7 +226,7 @@ export async function createBenchmarkApp(config = {}) {
   }, async (request, reply) => {
     const iterations = 500000
     const computation = performComputation(iterations)
-    
+
     return {
       endpoint: 'heavy',
       iterations,
@@ -242,9 +240,9 @@ export async function createBenchmarkApp(config = {}) {
   // Error handling
   app.setErrorHandler(async (error, request, reply) => {
     request.log.error(error)
-    
+
     const statusCode = error.statusCode || 500
-    
+
     return reply.status(statusCode).send({
       error: true,
       message: error.message,
@@ -270,7 +268,7 @@ export async function createBenchmarkApp(config = {}) {
 /**
  * Main function to start the server when run directly
  */
-async function main() {
+async function main () {
   try {
     const config = {
       port: parseInt(process.env.PORT) || 3000,
@@ -281,7 +279,7 @@ async function main() {
     }
 
     const app = await createBenchmarkApp(config)
-    
+
     // Graceful shutdown handling
     const gracefulShutdown = async (signal) => {
       app.log.info(`Received ${signal}, shutting down gracefully`)
@@ -293,16 +291,16 @@ async function main() {
         process.exit(1)
       }
     }
-    
+
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
     process.on('SIGINT', () => gracefulShutdown('SIGINT'))
-    
+
     // Start server
-    await app.listen({ 
-      port: config.port, 
-      host: config.host 
+    await app.listen({
+      port: config.port,
+      host: config.host
     })
-    
+
     console.log(`
 🔥 Fastify Benchmark Server Started
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -325,7 +323,6 @@ Configuration:
   HOST=${config.host}
   LOG_LEVEL=${config.logger.level}
 `)
-
   } catch (err) {
     console.error('Failed to start server:', err)
     process.exit(1)
