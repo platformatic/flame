@@ -203,6 +203,40 @@ async function stopServer (serverProcess, withProfiling = false) {
 }
 
 /**
+ * Generate CSV data for further processing
+ */
+function generateCsvData (appName, withoutProfiling, withProfiling) {
+  const csvRows = []
+
+  // CSV Header
+  csvRows.push('Framework,Endpoint,Load Level,Without Profiling (req/s),With Profiling (req/s),Throughput Overhead (%),Without Profiling Latency (ms),With Profiling Latency (ms),Latency Overhead (%)')
+
+  for (const path of Object.keys(withoutProfiling)) {
+    const without = withoutProfiling[path]
+    const with_ = withProfiling[path]
+
+    if (without && with_) {
+      const throughputOverhead = ((parseFloat(without.requestsPerSec) - parseFloat(with_.requestsPerSec)) / parseFloat(without.requestsPerSec)) * 100
+      const latencyOverhead = ((parseFloat(with_.latencyAvg) - parseFloat(without.latencyAvg)) / parseFloat(without.latencyAvg)) * 100
+
+      csvRows.push([
+        appName,
+        without.name,
+        without.expectedLoad,
+        without.requestsPerSec,
+        with_.requestsPerSec,
+        formatNumber(throughputOverhead),
+        without.latencyAvg,
+        with_.latencyAvg,
+        formatNumber(latencyOverhead)
+      ].join(','))
+    }
+  }
+
+  return csvRows.join('\n')
+}
+
+/**
  * Generate comparison report
  */
 function generateReport (appName, withoutProfiling, withProfiling) {
@@ -309,13 +343,20 @@ function generateReport (appName, withoutProfiling, withProfiling) {
     }
   }
 
+  // Generate and save CSV data
+  const csvData = generateCsvData(appName, withoutProfiling, withProfiling)
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+  const csvFilename = `flame-benchmark-${appName.toLowerCase()}-${timestamp}.csv`
+
+  fs.writeFileSync(csvFilename, csvData)
+  console.log(`\n📊 CSV data saved to: ${csvFilename}`)
   console.log('\n✅ Benchmark complete!')
 }
 
 /**
  * Run benchmark for a specific app
  */
-async function runAppBenchmark (app) {
+async function runAppBenchmark (app, returnResults = false) {
   console.log(`\n🚀 Benchmarking ${app.name}`)
   console.log('═'.repeat(50))
 
@@ -344,6 +385,14 @@ async function runAppBenchmark (app) {
 
     // Generate comparison report
     generateReport(app.name, resultsWithoutProfiling, resultsWithProfiling)
+
+    if (returnResults) {
+      return {
+        appName: app.name,
+        withoutProfiling: resultsWithoutProfiling,
+        withProfiling: resultsWithProfiling
+      }
+    }
   } catch (error) {
     console.error(`\n❌ ${app.name} benchmark failed:`, error.message)
     if (serverProcess) {
@@ -373,13 +422,34 @@ async function runBenchmark () {
     console.log('🎯 Running benchmarks for both Express and Fastify')
     console.log('📝 Use "node run-performance-benchmark.js express" or "node run-performance-benchmark.js fastify" to run individual benchmarks\n')
 
+    const allResults = []
     for (const app of apps) {
-      await runAppBenchmark(app)
+      const results = await runAppBenchmark(app, true)
+      if (results) allResults.push(results)
+
       if (app !== apps[apps.length - 1]) {
         console.log('\n⏳ Waiting 5 seconds before starting next benchmark...')
         await wait(5000)
       }
     }
+
+    // Generate combined CSV file
+    if (allResults.length > 0) {
+      const combinedCsvRows = []
+      combinedCsvRows.push('Framework,Endpoint,Load Level,Without Profiling (req/s),With Profiling (req/s),Throughput Overhead (%),Without Profiling Latency (ms),With Profiling Latency (ms),Latency Overhead (%)')
+
+      for (const result of allResults) {
+        const csvData = generateCsvData(result.appName, result.withoutProfiling, result.withProfiling)
+        const dataRows = csvData.split('\n').slice(1) // Skip header
+        combinedCsvRows.push(...dataRows)
+      }
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+      const combinedCsvFilename = `flame-benchmark-combined-${timestamp}.csv`
+      fs.writeFileSync(combinedCsvFilename, combinedCsvRows.join('\n'))
+      console.log(`\n📊 Combined CSV data saved to: ${combinedCsvFilename}`)
+    }
+
     console.log('\n🎉 All benchmarks completed!')
   }
 }
