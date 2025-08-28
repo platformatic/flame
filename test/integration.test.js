@@ -82,11 +82,11 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
   // Check that HTML file was also auto-generated (with some tolerance for async generation)
   const autoHtmlFile = profilePath.replace('.pb', '.html')
   const htmlExists = fs.existsSync(autoHtmlFile)
-  
+
   if (htmlExists) {
     console.log('✅ HTML file auto-generated successfully')
     assert.ok(fs.statSync(autoHtmlFile).size > 0, 'HTML file should not be empty')
-    
+
     // Check that JS file was also created
     const autoJsFile = profilePath.replace('.pb', '.js')
     if (fs.existsSync(autoJsFile)) {
@@ -159,7 +159,7 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
   if (fs.existsSync(autoHtmlFile)) {
     fs.unlinkSync(autoHtmlFile)
   }
-  
+
   const autoJsFile = autoHtmlFile.replace('.html', '.js')
   if (fs.existsSync(autoJsFile)) {
     fs.unlinkSync(autoJsFile)

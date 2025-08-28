@@ -5,8 +5,10 @@
 ## Features
 
 - **Auto-Start Profiling**: CPU profiling starts immediately when using `flame run` (default behavior)
+- **Automatic Flamegraph Generation**: Interactive HTML flamegraphs are created automatically on exit
+- **Clear File Path Display**: Shows exact paths and browser URLs for generated files
 - **Manual Control**: Optional manual mode with signal-based control using `SIGUSR2`
-- **Interactive Flamegraphs**: Generate interactive HTML flamegraphs with WebGL visualization
+- **Interactive Visualization**: WebGL-based HTML flamegraphs with zoom, search, and filtering
 - **CLI Interface**: Simple command-line tool for profiling and visualization
 - **Zero Config**: Works out of the box with sensible defaults
 
@@ -25,7 +27,11 @@ npm install -g @platformatic/flame
 flame run server.js
 
 # The application runs with CPU profiling active
-# Profile and HTML flamegraph are automatically generated when the process exits
+# When you stop the app (Ctrl-C or normal exit), you'll see:
+# 🔥 CPU profile written to: cpu-profile-2025-08-27T12-00-00-000Z.pb
+# 🔥 Generating flamegraph...
+# 🔥 Flamegraph will be saved as: cpu-profile-2025-08-27T12-00-00-000Z.html
+# 🔥 Open file:///path/to/cpu-profile-2025-08-27T12-00-00-000Z.html in your browser
 ```
 
 ### Manual Profiling Mode
@@ -135,8 +141,10 @@ curl http://localhost:3000
 curl http://localhost:3000
 
 # Stop the server (Ctrl-C) to automatically save profile and generate HTML flamegraph
-# Files created: cpu-profile-*.pb and cpu-profile-*.html
-# Open the HTML file in your browser to view the flamegraph!
+# You'll see the exact file paths and browser URL in the output:
+# 🔥 CPU profile written to: cpu-profile-2025-08-27T15-30-45-123Z.pb
+# 🔥 Flamegraph generated: cpu-profile-2025-08-27T15-30-45-123Z.html
+# 🔥 Open file:///path/to/cpu-profile-2025-08-27T15-30-45-123Z.html in your browser
 ```
 
 **Manual Mode:**
