@@ -166,6 +166,34 @@ flame toggle
 flame generate cpu-profile-*.pb
 ```
 
+### Example Applications
+
+Two comprehensive benchmark applications are included for testing profiling overhead and feature Express.js middlewares and Fastify plugins with realistic computation endpoints.
+
+#### Running Benchmark Apps
+```bash
+# Run both Express and Fastify apps sequentially  
+node examples/run-benchmark-apps.js
+
+# Run only Express app
+node examples/run-benchmark-apps.js express
+
+# Run only Fastify app  
+node examples/run-benchmark-apps.js fastify
+
+# Run individual apps without profiling
+node examples/express-benchmark-app.js
+node examples/fastify-benchmark-app.js
+```
+
+Both apps include:
+- Health check endpoint (no computation)
+- Light computation endpoint (~1k iterations)
+- Medium computation endpoint (~10k iterations)
+- Heavy computation endpoint (~100k iterations)
+- Multiple middleware layers for realistic overhead testing
+- Comprehensive test suites
+
 ### Load Testing Example
 
 The package includes a complete load testing example using `autocannon`:
