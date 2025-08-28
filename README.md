@@ -184,6 +184,9 @@ node examples/run-benchmark-apps.js fastify
 # Run individual apps without profiling
 node examples/express-benchmark-app.js
 node examples/fastify-benchmark-app.js
+
+# Run comprehensive performance overhead analysis
+node examples/run-performance-benchmark.js
 ```
 
 Both apps include:
