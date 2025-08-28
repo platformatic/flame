@@ -105,7 +105,7 @@ async function startServer (app, withProfiling = false) {
   await new Promise((resolve) => {
     const checkServer = setInterval(() => {
       const serverStartedExpress = serverOutput.includes('Express Benchmark Server running')
-      const serverStartedFastify = serverOutput.includes('Server running at')
+      const serverStartedFastify = serverOutput.includes('Fastify Benchmark Server Started')
       if (serverStartedExpress || serverStartedFastify) {
         clearInterval(checkServer)
         resolve()

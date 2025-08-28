@@ -188,6 +188,23 @@ Both apps include:
 - Multiple middleware layers for realistic overhead testing
 - Comprehensive test suites
 
+#### Performance Overhead Results
+
+Based on comprehensive benchmarks with 10 concurrent connections over 10 seconds per endpoint:
+
+**Express.js Framework:**
+| Endpoint | Load Level | Without Profiling | With Profiling | Throughput Overhead | Latency Overhead |
+|----------|------------|-------------------|----------------|--------------------|--------------------|
+| Health Check | Minimal | 13,571 req/s | 13,752 req/s | -1.3% | -6.3% |
+| Light Computation | Low | 10,187 req/s | 9,979 req/s | +2.0% | +12.0% |
+| Medium Computation | Moderate | 71 req/s | 66 req/s | +6.1% | +6.3% |
+| Heavy Computation | High | 295 req/s | 291 req/s | +1.3% | +1.4% |
+| Mixed Computation | Very High | 56 req/s | 53 req/s | +5.2% | +5.8% |
+
+**Summary:** Average throughput overhead of **2.7%** and latency overhead of **3.9%**
+
+*CSV data is automatically generated when running `node examples/run-performance-benchmark.js` for further analysis.*
+
 ### Load Testing Example
 
 You can run load tests manually:
