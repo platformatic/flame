@@ -196,7 +196,7 @@ async function stopServer (serverProcess, withProfiling = false) {
     await wait(1000)
   }
 
-  serverProcess.kill('SIGTERM')
+  serverProcess.kill('SIGINT')
   await wait(2000)
 
   console.log('   ✅ Server stopped')
@@ -386,7 +386,9 @@ async function runBenchmark () {
 
 // Run benchmark if called directly
 if (require.main === module) {
-  runBenchmark().catch(error => {
+  runBenchmark().then(() => {
+    process.exit(0)
+  }).catch(error => {
     console.error('Benchmark error:', error)
     process.exit(1)
   })
