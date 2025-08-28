@@ -1,3 +1,5 @@
+'use strict'
+
 /**
  * Fastify Benchmark Application
  *
@@ -20,7 +22,7 @@
  *   await app.listen({ port: 3000, host: '0.0.0.0' });
  */
 
-import fastify from 'fastify'
+const fastify = require('fastify')
 
 /**
  * Performs a simple computational task with a specified number of iterations.
@@ -65,7 +67,7 @@ function performComputation (iterations) {
  * @param {object} config.logger - Logger configuration
  * @returns {Promise<FastifyInstance>} - Configured Fastify application
  */
-export async function createBenchmarkApp (config = {}) {
+async function createBenchmarkApp (config = {}) {
   const {
     logger = { level: 'info' }
   } = config
@@ -368,7 +370,10 @@ Configuration:
   }
 }
 
+// Export the function for testing
+module.exports = { createBenchmarkApp }
+
 // Run server if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (require.main === module) {
   main()
 }
