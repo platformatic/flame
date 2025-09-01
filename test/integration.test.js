@@ -98,11 +98,11 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
 
   // Step 3: Generate flamegraph from the profile
   try {
-    require.resolve('@platformatic/react-pprof/cli.js')
+    require.resolve('react-pprof/cli.js')
   } catch (error) {
     // Clean up and fail if react-pprof CLI is not available
     fs.unlinkSync(profilePath)
-    assert.fail('@platformatic/react-pprof CLI not available - dependency should be installed')
+    assert.fail('react-pprof CLI not available - dependency should be installed')
   }
 
   const htmlFile = path.join(outputDir, 'test-flamegraph.html')
