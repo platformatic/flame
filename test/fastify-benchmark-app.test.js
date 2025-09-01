@@ -1,21 +1,15 @@
-import { test, describe } from 'node:test'
-import assert from 'node:assert'
-import { fileURLToPath } from 'node:url'
-import path from 'node:path'
+'use strict'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
-const benchmarkAppPath = path.join(__dirname, '..', 'examples', 'fastify-benchmark-app.js')
+const { test, describe } = require('node:test')
+const assert = require('node:assert')
+const { createBenchmarkApp } = require('../examples/fastify-benchmark-app.js')
 
 describe('Fastify Benchmark Application', () => {
   test('should export a function to create the Fastify app', async () => {
-    const { createBenchmarkApp } = await import(benchmarkAppPath)
     assert.strictEqual(typeof createBenchmarkApp, 'function')
   })
 
   test('should create app with default configuration', async () => {
-    const { createBenchmarkApp } = await import(benchmarkAppPath)
     const app = await createBenchmarkApp()
 
     assert(app)
@@ -26,7 +20,6 @@ describe('Fastify Benchmark Application', () => {
   })
 
   test('should create app with custom configuration', async () => {
-    const { createBenchmarkApp } = await import(benchmarkAppPath)
     const config = {
       port: 4000,
       host: '127.0.0.1',
@@ -40,7 +33,6 @@ describe('Fastify Benchmark Application', () => {
 
   describe('Health Endpoint', () => {
     test('should respond to GET /health with success', async () => {
-      const { createBenchmarkApp } = await import(benchmarkAppPath)
       const app = await createBenchmarkApp()
 
       const response = await app.inject({
@@ -61,7 +53,6 @@ describe('Fastify Benchmark Application', () => {
 
   describe('Light Endpoint', () => {
     test('should respond to GET /light with computational work result', async () => {
-      const { createBenchmarkApp } = await import(benchmarkAppPath)
       const app = await createBenchmarkApp()
 
       const startTime = Date.now()
@@ -86,7 +77,6 @@ describe('Fastify Benchmark Application', () => {
     })
 
     test('should perform consistent computational work', async () => {
-      const { createBenchmarkApp } = await import(benchmarkAppPath)
       const app = await createBenchmarkApp()
 
       const response1 = await app.inject({ method: 'GET', url: '/light' })
@@ -105,7 +95,6 @@ describe('Fastify Benchmark Application', () => {
 
   describe('Medium Endpoint', () => {
     test('should respond to GET /medium with computational work result', async () => {
-      const { createBenchmarkApp } = await import(benchmarkAppPath)
       const app = await createBenchmarkApp()
 
       const response = await app.inject({
@@ -126,7 +115,6 @@ describe('Fastify Benchmark Application', () => {
     })
 
     test('should take longer than light endpoint', async () => {
-      const { createBenchmarkApp } = await import(benchmarkAppPath)
       const app = await createBenchmarkApp()
 
       const lightResponse = await app.inject({ method: 'GET', url: '/light' })
@@ -144,7 +132,6 @@ describe('Fastify Benchmark Application', () => {
 
   describe('Heavy Endpoint', () => {
     test('should respond to GET /heavy with computational work result', async () => {
-      const { createBenchmarkApp } = await import(benchmarkAppPath)
       const app = await createBenchmarkApp()
 
       const response = await app.inject({
@@ -165,7 +152,6 @@ describe('Fastify Benchmark Application', () => {
     })
 
     test('should take longer than medium endpoint', async () => {
-      const { createBenchmarkApp } = await import(benchmarkAppPath)
       const app = await createBenchmarkApp()
 
       const mediumResponse = await app.inject({ method: 'GET', url: '/medium' })
@@ -183,7 +169,6 @@ describe('Fastify Benchmark Application', () => {
 
   describe('Plugin Integration', () => {
     test('should have CORS headers for cross-origin requests', async () => {
-      const { createBenchmarkApp } = await import(benchmarkAppPath)
       const app = await createBenchmarkApp()
 
       const response = await app.inject({
@@ -200,7 +185,6 @@ describe('Fastify Benchmark Application', () => {
     })
 
     test('should have security headers from helmet', async () => {
-      const { createBenchmarkApp } = await import(benchmarkAppPath)
       const app = await createBenchmarkApp()
 
       const response = await app.inject({
@@ -215,7 +199,6 @@ describe('Fastify Benchmark Application', () => {
     })
 
     test('should support compression', async () => {
-      const { createBenchmarkApp } = await import(benchmarkAppPath)
       const app = await createBenchmarkApp()
 
       const response = await app.inject({
@@ -235,7 +218,6 @@ describe('Fastify Benchmark Application', () => {
 
   describe('Error Handling', () => {
     test('should return 404 for non-existent routes', async () => {
-      const { createBenchmarkApp } = await import(benchmarkAppPath)
       const app = await createBenchmarkApp()
 
       const response = await app.inject({

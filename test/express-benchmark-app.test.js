@@ -1,19 +1,14 @@
-import { test, describe } from 'node:test'
-import assert from 'node:assert'
-import { fileURLToPath } from 'node:url'
-import path from 'node:path'
-import inject from 'light-my-request'
+'use strict'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
-const benchmarkAppPath = path.join(__dirname, '..', 'examples', 'express-benchmark-app.js')
+const { test, describe } = require('node:test')
+const assert = require('node:assert')
+const inject = require('light-my-request')
+const expressModule = require('../examples/express-benchmark-app.js')
 
 describe('Express Benchmark Application', () => {
   let app
 
   test('should export app, server, and config objects', async () => {
-    const expressModule = await import(benchmarkAppPath)
     assert(expressModule.app, 'app should be exported')
     assert(expressModule.server, 'server should be exported')
     assert(expressModule.config, 'config should be exported')

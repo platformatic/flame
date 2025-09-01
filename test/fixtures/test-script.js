@@ -1,3 +1,5 @@
+'use strict'
+
 // Simple test script for testing profiling
 console.log('Test script starting...')
 
