@@ -26,6 +26,14 @@
   ],
   "author": "Platformatic Inc. <oss@platformatic.dev> (http://platformatic.dev/)",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/platformatic/flame.git"
+  },
+  "homepage": "https://github.com/platformatic/flame#readme",
+  "bugs": {
+    "url": "https://github.com/platformatic/flame/issues"
+  },
   "dependencies": {
     "@datadog/pprof": "^5.9.0",
     "fastify": "^5.5.0",
