@@ -52,9 +52,9 @@ test('parseProfile should throw error for non-existent file', async (t) => {
 test('generateFlamegraph should create HTML file', async (t) => {
   // Skip this test if @platformatic/react-pprof is not available
   try {
-    require.resolve('@platformatic/react-pprof/cli.js')
+    require.resolve('react-pprof/cli.js')
   } catch (error) {
-    t.skip('@platformatic/react-pprof not available')
+    t.skip('react-pprof not available')
     return
   }
 
