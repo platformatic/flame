@@ -54,7 +54,7 @@
     "helmet": "^7.1.0",
     "light-my-request": "^6.6.0",
     "morgan": "^1.10.0",
-    "neostandard": "^0.11.6"
+    "neostandard": "^0.12.0"
   },
   "engines": {
     "node": ">=20.0.0"
