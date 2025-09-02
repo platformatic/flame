@@ -51,7 +51,7 @@
     "cors": "^2.8.5",
     "eslint": "^9.0.0",
     "express": "^4.19.2",
-    "helmet": "^7.1.0",
+    "helmet": "^8.0.0",
     "light-my-request": "^6.6.0",
     "morgan": "^1.10.0",
     "neostandard": "^0.11.6"
