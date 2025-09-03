@@ -1,6 +1,6 @@
 {
   "name": "@platformatic/flame",
-  "version": "0.1.3",
+  "version": "1.0.0",
   "description": "CPU profiling and flamegraph visualization tool using @platformatic/react-pprof",
   "main": "lib/index.js",
   "bin": {
