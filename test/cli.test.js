@@ -94,6 +94,56 @@ test('CLI generate command should show error for non-existent file', async (t) =
   assert.ok(result.stderr.includes('not found'), 'Should show file not found error')
 })
 
+test('CLI help should include node-options flag', async (t) => {
+  const result = await runCli(['--help'])
+
+  assert.strictEqual(result.code, 0, 'Should exit successfully')
+  assert.ok(result.stdout.includes('--node-options'), 'Should show --node-options option')
+  assert.ok(result.stdout.includes('Node.js CLI options to pass'), 'Should show node-options description')
+})
+
+test('CLI should accept --node-options flag', async (t) => {
+  // Create a simple test script that uses process.execArgv to verify node options were passed
+  const testScript = path.join(__dirname, 'temp-node-options-test.js')
+  fs.writeFileSync(testScript, `
+    console.log('execArgv:', JSON.stringify(process.execArgv));
+    console.log('Test completed');
+    process.exit(0);
+  `)
+
+  const child = spawn('node', [cliPath, 'run', '--node-options=--max-old-space-size=512', testScript], {
+    stdio: 'pipe'
+  })
+
+  let stdout = ''
+
+  child.stdout.on('data', (data) => {
+    stdout += data.toString()
+  })
+
+  child.stderr.on('data', (data) => {
+    // Consume stderr to prevent blocking
+  })
+
+  // Wait for the process to complete or timeout after 5 seconds
+  const [exitCode] = await Promise.race([
+    once(child, 'close'),
+    new Promise((resolve) => {
+      setTimeout(() => {
+        child.kill('SIGKILL')
+        resolve([-1])
+      }, 5000)
+    })
+  ])
+
+  // Clean up
+  fs.unlinkSync(testScript)
+
+  // Verify the node options were passed correctly
+  assert.notStrictEqual(exitCode, -1, 'Process should complete before timeout')
+  assert.ok(stdout.includes('--max-old-space-size=512'), 'Should pass node options to the profiled process')
+})
+
 test('CLI should handle SIGINT gracefully', async (t) => {
   // Create a simple test script that runs for a while
   const testScript = path.join(__dirname, 'temp-long-script.js')

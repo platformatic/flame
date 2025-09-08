@@ -42,6 +42,55 @@ test('startProfiling should handle non-existent script', async (t) => {
   assert.notStrictEqual(exitCode, 0, 'Process should not exit successfully with non-existent script')
 })
 
+test('startProfiling should accept nodeOptions parameter', async (t) => {
+  // Create a simple test script that outputs process.execArgv
+  const testScript = path.join(__dirname, 'temp-node-options-lib-test.js')
+  fs.writeFileSync(testScript, `
+    console.log('NODE_OPTIONS_TEST:' + JSON.stringify(process.execArgv));
+    process.exit(0);
+  `)
+
+  const nodeOptions = ['--max-old-space-size=256', '--inspect-port=9998']
+  const result = startProfiling(testScript, [], { nodeOptions, stdio: 'pipe' })
+
+  let stdout = ''
+  result.process.stdout.on('data', (data) => {
+    stdout += data.toString()
+  })
+
+  // Wait for the process to exit
+  await once(result.process, 'exit')
+
+  // Clean up
+  fs.unlinkSync(testScript)
+
+  // Verify node options were passed
+  assert.ok(stdout.includes('--max-old-space-size=256'), 'Should pass first node option')
+  assert.ok(stdout.includes('--inspect-port=9998'), 'Should pass second node option')
+})
+
+test('startProfiling should work with empty nodeOptions', async (t) => {
+  // Create a simple test script
+  const testScript = path.join(__dirname, 'temp-empty-options-test.js')
+  fs.writeFileSync(testScript, 'console.log("EMPTY_OPTIONS_TEST"); process.exit(0);')
+
+  const result = startProfiling(testScript, [], { nodeOptions: [], stdio: 'pipe' })
+
+  let stdout = ''
+  result.process.stdout.on('data', (data) => {
+    stdout += data.toString()
+  })
+
+  // Wait for the process to exit
+  await once(result.process, 'exit')
+
+  // Clean up
+  fs.unlinkSync(testScript)
+
+  // Verify the script ran successfully
+  assert.ok(stdout.includes('EMPTY_OPTIONS_TEST'), 'Should run script with empty nodeOptions array')
+})
+
 test('parseProfile should throw error for non-existent file', async (t) => {
   const nonExistentFile = path.join(__dirname, 'non-existent.pb')
 
