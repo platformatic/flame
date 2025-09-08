@@ -294,8 +294,8 @@ app.get('/mixed', (req, res) => {
   }
 })
 
-// Batch endpoint - runs multiple operations of the same type
-app.get('/batch/:type/:count?', (req, res) => {
+// Helper function for batch processing
+function handleBatchRequest (req, res) {
   const { type, count = 5 } = req.params
   const batchCount = Math.min(Math.max(parseInt(count), 1), 20) // Limit between 1-20
 
@@ -350,7 +350,13 @@ app.get('/batch/:type/:count?', (req, res) => {
       timestamp: new Date().toISOString()
     })
   }
-})
+}
+
+// Batch endpoint - runs multiple operations of the same type (with count)
+app.get('/batch/:type/:count', handleBatchRequest)
+
+// Batch endpoint - runs multiple operations of the same type (default count)
+app.get('/batch/:type', handleBatchRequest)
 
 // Root endpoint - provides API documentation
 app.get('/', (req, res) => {
