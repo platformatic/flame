@@ -103,7 +103,7 @@ test('preload script should respond to SIGUSR2', { skip: process.platform === 'w
   // Clean up
   fs.unlinkSync(testScript)
 
-  assert.ok(result.stdout.includes('Starting CPU profiler'), 'Should start profiler on SIGUSR2')
+  assert.ok(result.stdout.includes('Starting CPU and heap profilers'), 'Should start profilers on SIGUSR2')
 })
 
 test('preload script should create profile file on double SIGUSR2', { skip: process.platform === 'win32' ? 'SIGUSR2 not supported on Windows' : false }, async (t) => {
@@ -158,12 +158,13 @@ test('preload script should create profile file on double SIGUSR2', { skip: proc
   // Clean up any generated profile files
   const files = fs.readdirSync(__dirname)
   files.forEach(file => {
-    if (file.startsWith('cpu-profile-') && file.endsWith('.pb')) {
+    if ((file.startsWith('cpu-profile-') || file.startsWith('heap-profile-')) && file.endsWith('.pb')) {
       fs.unlinkSync(path.join(__dirname, file))
     }
   })
 
-  assert.ok(result.stdout.includes('Starting CPU profiler'), 'Should start profiler')
-  assert.ok(result.stdout.includes('Stopping CPU profiler'), 'Should stop profiler')
-  assert.ok(result.stdout.includes('CPU profile written'), 'Should write profile file')
+  assert.ok(result.stdout.includes('Starting CPU and heap profilers'), 'Should start profilers')
+  assert.ok(result.stdout.includes('Stopping profilers'), 'Should stop profilers')
+  assert.ok(result.stdout.includes('CPU profile written'), 'Should write CPU profile file')
+  assert.ok(result.stdout.includes('Heap profile written'), 'Should write heap profile file')
 })

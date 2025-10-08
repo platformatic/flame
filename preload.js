@@ -5,8 +5,10 @@ const path = require('path')
 const pprof = require('@datadog/pprof')
 const { spawn } = require('child_process')
 
-const profiler = pprof.time
-let isProfilerRunning = false
+const cpuProfiler = pprof.time
+const heapProfiler = pprof.heap
+let isCpuProfilerRunning = false
+let isHeapProfilerRunning = false
 const autoStart = process.env.FLAME_AUTO_START === 'true'
 
 function generateFlamegraph (pprofPath, outputPath) {
@@ -43,87 +45,141 @@ function generateFlamegraph (pprofPath, outputPath) {
 }
 
 function stopProfilerQuick () {
-  if (!isProfilerRunning) {
+  if (!isCpuProfilerRunning && !isHeapProfilerRunning) {
     return null
   }
 
-  console.log('Stopping CPU profiler and writing profile to disk...')
+  console.log('Stopping profilers and writing profiles to disk...')
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const filenames = []
+
   try {
-    const profileData = profiler.stop()
-    const profile = profileData.encode()
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const filename = `cpu-profile-${timestamp}.pb`
+    if (isCpuProfilerRunning) {
+      const cpuProfileData = cpuProfiler.stop()
+      const cpuProfile = cpuProfileData.encode()
+      const cpuFilename = `cpu-profile-${timestamp}.pb`
+      fs.writeFileSync(cpuFilename, cpuProfile)
+      console.log(`🔥 CPU profile written to: ${cpuFilename}`)
+      filenames.push(cpuFilename)
+      isCpuProfilerRunning = false
+    }
 
-    fs.writeFileSync(filename, profile)
-    console.log(`🔥 CPU profile written to: ${filename}`)
+    if (isHeapProfilerRunning) {
+      const heapProfileData = heapProfiler.profile()
+      heapProfiler.stop()
+      const heapProfile = heapProfileData.encode()
+      const heapFilename = `heap-profile-${timestamp}.pb`
+      fs.writeFileSync(heapFilename, heapProfile)
+      console.log(`🔥 Heap profile written to: ${heapFilename}`)
+      filenames.push(heapFilename)
+      isHeapProfilerRunning = false
+    }
 
-    isProfilerRunning = false
-    return filename
+    return filenames
   } catch (error) {
-    console.error('Error generating profile:', error)
-    isProfilerRunning = false
+    console.error('Error generating profiles:', error)
+    isCpuProfilerRunning = false
+    isHeapProfilerRunning = false
     return null
   }
 }
 
 async function stopProfilerAndSave (generateHtml = false) {
-  if (!isProfilerRunning) {
+  if (!isCpuProfilerRunning && !isHeapProfilerRunning) {
     return null
   }
 
-  console.log('Stopping CPU profiler and writing profile to disk...')
+  console.log('Stopping profilers and writing profiles to disk...')
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const filenames = []
+
   try {
-    const profileData = profiler.stop()
-    const profile = profileData.encode()
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const filename = `cpu-profile-${timestamp}.pb`
+    if (isCpuProfilerRunning) {
+      const cpuProfileData = cpuProfiler.stop()
+      const cpuProfile = cpuProfileData.encode()
+      const cpuFilename = `cpu-profile-${timestamp}.pb`
+      fs.writeFileSync(cpuFilename, cpuProfile)
+      console.log(`🔥 CPU profile written to: ${cpuFilename}`)
+      filenames.push(cpuFilename)
+      isCpuProfilerRunning = false
 
-    fs.writeFileSync(filename, profile)
-    console.log(`🔥 CPU profile written to: ${filename}`)
-
-    if (generateHtml) {
-      // Auto-generate HTML flamegraph on exit
-      const htmlFilename = filename.replace('.pb', '.html')
-      console.log('🔥 Generating flamegraph...')
-
-      try {
-        await generateFlamegraph(filename, htmlFilename)
-        console.log(`🔥 Flamegraph generated: ${htmlFilename}`)
-        console.log(`🔥 Open file://${path.resolve(htmlFilename)} in your browser to view the flamegraph`)
-      } catch (error) {
-        console.error('Warning: Failed to generate flamegraph:', error.message)
+      if (generateHtml) {
+        const htmlFilename = cpuFilename.replace('.pb', '.html')
+        console.log('🔥 Generating CPU flamegraph...')
+        try {
+          await generateFlamegraph(cpuFilename, htmlFilename)
+          console.log(`🔥 CPU flamegraph generated: ${htmlFilename}`)
+          console.log(`🔥 Open file://${path.resolve(htmlFilename)} in your browser to view the CPU flamegraph`)
+        } catch (error) {
+          console.error('Warning: Failed to generate CPU flamegraph:', error.message)
+        }
       }
     }
 
-    isProfilerRunning = false
-    return filename
+    if (isHeapProfilerRunning) {
+      const heapProfileData = heapProfiler.profile()
+      heapProfiler.stop()
+      const heapProfile = heapProfileData.encode()
+      const heapFilename = `heap-profile-${timestamp}.pb`
+      fs.writeFileSync(heapFilename, heapProfile)
+      console.log(`🔥 Heap profile written to: ${heapFilename}`)
+      filenames.push(heapFilename)
+      isHeapProfilerRunning = false
+
+      if (generateHtml) {
+        const htmlFilename = heapFilename.replace('.pb', '.html')
+        console.log('🔥 Generating heap flamegraph...')
+        try {
+          await generateFlamegraph(heapFilename, htmlFilename)
+          console.log(`🔥 Heap flamegraph generated: ${htmlFilename}`)
+          console.log(`🔥 Open file://${path.resolve(htmlFilename)} in your browser to view the heap flamegraph`)
+        } catch (error) {
+          console.error('Warning: Failed to generate heap flamegraph:', error.message)
+        }
+      }
+    }
+
+    return filenames
   } catch (error) {
-    console.error('Error generating profile:', error)
-    isProfilerRunning = false
+    console.error('Error generating profiles:', error)
+    isCpuProfilerRunning = false
+    isHeapProfilerRunning = false
     return null
   }
 }
 
-function generateHtmlAsync (filename) {
-  const htmlFilename = filename.replace('.pb', '.html')
-  console.log('🔥 Generating flamegraph...')
-  console.log(`🔥 Flamegraph will be saved as: ${htmlFilename}`)
-  console.log(`🔥 Open file://${path.resolve(htmlFilename)} in your browser once generation completes`)
+function generateHtmlAsync (filenames) {
+  if (!Array.isArray(filenames)) {
+    filenames = [filenames]
+  }
 
-  generateFlamegraph(filename, htmlFilename)
-    .then(() => {
-      console.log('🔥 Flamegraph generation completed')
-    })
-    .catch(error => {
-      console.error('Warning: Failed to generate flamegraph:', error.message)
-    })
+  filenames.forEach(filename => {
+    const htmlFilename = filename.replace('.pb', '.html')
+    const profileType = filename.includes('cpu-profile') ? 'CPU' : 'Heap'
+    console.log(`🔥 Generating ${profileType} flamegraph...`)
+    console.log(`🔥 Flamegraph will be saved as: ${htmlFilename}`)
+    console.log(`🔥 Open file://${path.resolve(htmlFilename)} in your browser once generation completes`)
+
+    generateFlamegraph(filename, htmlFilename)
+      .then(() => {
+        console.log(`🔥 ${profileType} flamegraph generation completed`)
+      })
+      .catch(error => {
+        console.error(`Warning: Failed to generate ${profileType} flamegraph:`, error.message)
+      })
+  })
 }
 
 function toggleProfiler () {
-  if (!isProfilerRunning) {
-    console.log('Starting CPU profiler...')
-    profiler.start()
-    isProfilerRunning = true
+  if (!isCpuProfilerRunning && !isHeapProfilerRunning) {
+    console.log('Starting CPU and heap profilers...')
+    cpuProfiler.start()
+    // Start heap profiler with default parameters
+    // intervalBytes: 512KB (512 * 1024)
+    // stackDepth: 64
+    heapProfiler.start(512 * 1024, 64)
+    isCpuProfilerRunning = true
+    isHeapProfilerRunning = true
   } else {
     // Manual toggle - don't generate HTML
     stopProfilerAndSave(false)
@@ -144,16 +200,16 @@ console.log(`Process PID: ${process.pid}`)
 
 // Auto-start profiling if enabled
 if (autoStart) {
-  console.log('🔥 Auto-starting CPU profiler...')
+  console.log('🔥 Auto-starting CPU and heap profilers...')
   toggleProfiler()
 
   let exitHandlerCalled = false
 
   // Auto-stop profiling when the process is about to exit
   process.on('beforeExit', async () => {
-    if (isProfilerRunning && !exitHandlerCalled) {
+    if ((isCpuProfilerRunning || isHeapProfilerRunning) && !exitHandlerCalled) {
       exitHandlerCalled = true
-      console.log('🔥 Process exiting, stopping profiler...')
+      console.log('🔥 Process exiting, stopping profilers...')
       await stopProfilerAndSave(true) // Generate HTML on exit
     }
   })
@@ -161,9 +217,9 @@ if (autoStart) {
   // Handle explicit process.exit() calls
   const originalExit = process.exit
   process.exit = function (code) {
-    if (isProfilerRunning && !exitHandlerCalled) {
+    if ((isCpuProfilerRunning || isHeapProfilerRunning) && !exitHandlerCalled) {
       exitHandlerCalled = true
-      console.log('🔥 Process exiting, stopping profiler...')
+      console.log('🔥 Process exiting, stopping profilers...')
       // For process.exit(), we need to handle async differently since we can't await here
       stopProfilerAndSave(true).then(() => {
         return originalExit.call(this, code)
@@ -177,26 +233,26 @@ if (autoStart) {
   }
 
   process.on('SIGINT', () => {
-    if (isProfilerRunning && !exitHandlerCalled) {
+    if ((isCpuProfilerRunning || isHeapProfilerRunning) && !exitHandlerCalled) {
       exitHandlerCalled = true
-      console.log('\n🔥 SIGINT received, stopping profiler...')
+      console.log('\n🔥 SIGINT received, stopping profilers...')
       // For signals, do a quick synchronous save and show HTML info immediately
-      const filename = stopProfilerQuick()
-      if (filename) {
-        generateHtmlAsync(filename)
+      const filenames = stopProfilerQuick()
+      if (filenames) {
+        generateHtmlAsync(filenames)
       }
     }
     process.exit(0)
   })
 
   process.on('SIGTERM', () => {
-    if (isProfilerRunning && !exitHandlerCalled) {
+    if ((isCpuProfilerRunning || isHeapProfilerRunning) && !exitHandlerCalled) {
       exitHandlerCalled = true
-      console.log('\n🔥 SIGTERM received, stopping profiler...')
+      console.log('\n🔥 SIGTERM received, stopping profilers...')
       // For signals, do a quick synchronous save and show HTML info immediately
-      const filename = stopProfilerQuick()
-      if (filename) {
-        generateHtmlAsync(filename)
+      const filenames = stopProfilerQuick()
+      if (filenames) {
+        generateHtmlAsync(filenames)
       }
     }
     process.exit(0)
