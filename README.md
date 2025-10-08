@@ -1,11 +1,12 @@
 # @platformatic/flame
 
-🔥 CPU profiling and flamegraph visualization tool built on top of [@platformatic/react-pprof](https://github.com/platformatic/react-pprof).
+🔥 CPU and heap profiling and flamegraph visualization tool built on top of [@platformatic/react-pprof](https://github.com/platformatic/react-pprof).
 
 ## Features
 
-- **Auto-Start Profiling**: CPU profiling starts immediately when using `flame run` (default behavior)
-- **Automatic Flamegraph Generation**: Interactive HTML flamegraphs are created automatically on exit
+- **Dual Profiling**: Captures both CPU and heap profiles concurrently for comprehensive performance insights
+- **Auto-Start Profiling**: Profiling starts immediately when using `flame run` (default behavior)
+- **Automatic Flamegraph Generation**: Interactive HTML flamegraphs are created automatically for both CPU and heap profiles on exit
 - **Clear File Path Display**: Shows exact paths and browser URLs for generated files
 - **Manual Control**: Optional manual mode with signal-based control using `SIGUSR2`
 - **Interactive Visualization**: WebGL-based HTML flamegraphs with zoom, search, and filtering
@@ -26,12 +27,16 @@ npm install -g @platformatic/flame
 # Start profiling your application (profiling begins immediately)
 flame run server.js
 
-# The application runs with CPU profiling active
+# The application runs with CPU and heap profiling active
 # When you stop the app (Ctrl-C or normal exit), you'll see:
 # 🔥 CPU profile written to: cpu-profile-2025-08-27T12-00-00-000Z.pb
-# 🔥 Generating flamegraph...
-# 🔥 Flamegraph will be saved as: cpu-profile-2025-08-27T12-00-00-000Z.html
-# 🔥 Open file:///path/to/cpu-profile-2025-08-27T12-00-00-000Z.html in your browser
+# 🔥 Heap profile written to: heap-profile-2025-08-27T12-00-00-000Z.pb
+# 🔥 Generating CPU flamegraph...
+# 🔥 CPU flamegraph generated: cpu-profile-2025-08-27T12-00-00-000Z.html
+# 🔥 Generating heap flamegraph...
+# 🔥 Heap flamegraph generated: heap-profile-2025-08-27T12-00-00-000Z.html
+# 🔥 Open file:///path/to/cpu-profile-2025-08-27T12-00-00-000Z.html in your browser to view the CPU flamegraph
+# 🔥 Open file:///path/to/heap-profile-2025-08-27T12-00-00-000Z.html in your browser to view the heap flamegraph
 ```
 
 ### Manual Profiling Mode
@@ -99,19 +104,20 @@ const profile = await parseProfile('profile.pb')
 
 ## How It Works
 
-1. **Auto-Start Mode (Default)**: Profiling begins immediately when `flame run` starts your script
-2. **Auto-Generation on Exit**: Profile (.pb) and interactive HTML flamegraph are automatically created when the process exits
+1. **Auto-Start Mode (Default)**: Both CPU and heap profiling begin immediately when `flame run` starts your script
+2. **Auto-Generation on Exit**: Profile (.pb) files and interactive HTML flamegraphs are automatically created for both CPU and heap profiles when the process exits
 3. **Manual Mode**: Use `--manual` flag to require `SIGUSR2` signals for start/stop control (no auto-HTML generation)
-4. **Interactive Visualization**: The `@platformatic/react-pprof` library generates interactive WebGL-based HTML flamegraphs
+4. **Interactive Visualization**: The `@platformatic/react-pprof` library generates interactive WebGL-based HTML flamegraphs for both profile types
 
 ## Profile Files
 
 Profile files are saved with timestamps in the format:
 ```
 cpu-profile-2024-01-01T12-00-00-000Z.pb
+heap-profile-2024-01-01T12-00-00-000Z.pb
 ```
 
-The files are compressed Protocol Buffer format compatible with the pprof ecosystem.
+Both CPU and heap profiles share the same timestamp for easy correlation. The files are compressed Protocol Buffer format compatible with the pprof ecosystem.
 
 ## Integration with Existing Apps
 
@@ -140,11 +146,14 @@ curl http://localhost:3000
 curl http://localhost:3000
 curl http://localhost:3000
 
-# Stop the server (Ctrl-C) to automatically save profile and generate HTML flamegraph
-# You'll see the exact file paths and browser URL in the output:
+# Stop the server (Ctrl-C) to automatically save profiles and generate HTML flamegraphs
+# You'll see the exact file paths and browser URLs in the output:
 # 🔥 CPU profile written to: cpu-profile-2025-08-27T15-30-45-123Z.pb
-# 🔥 Flamegraph generated: cpu-profile-2025-08-27T15-30-45-123Z.html
-# 🔥 Open file:///path/to/cpu-profile-2025-08-27T15-30-45-123Z.html in your browser
+# 🔥 Heap profile written to: heap-profile-2025-08-27T15-30-45-123Z.pb
+# 🔥 CPU flamegraph generated: cpu-profile-2025-08-27T15-30-45-123Z.html
+# 🔥 Heap flamegraph generated: heap-profile-2025-08-27T15-30-45-123Z.html
+# 🔥 Open file:///path/to/cpu-profile-2025-08-27T15-30-45-123Z.html in your browser to view the CPU flamegraph
+# 🔥 Open file:///path/to/heap-profile-2025-08-27T15-30-45-123Z.html in your browser to view the heap flamegraph
 ```
 
 **Manual Mode:**

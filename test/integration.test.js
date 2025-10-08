@@ -38,17 +38,23 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
     cwd: outputDir
   })
 
-  let profileFile = null
+  let cpuProfileFile = null
+  let heapProfileFile = null
 
   child.stdout.on('data', (data) => {
     const output = data.toString()
 
     // With auto-start, profiling begins immediately and stops on exit
-    // Just capture the profile filename when it's written
-    const profileMatch = output.match(/CPU profile written to: (cpu-profile-[^\s]+\.pb)/)
-    if (profileMatch) {
-      profileFile = profileMatch[1]
-      // The process will exit naturally after creating the profile and HTML
+    // Capture both profile filenames when they're written
+    const cpuProfileMatch = output.match(/CPU profile written to: (cpu-profile-[^\s]+\.pb)/)
+    if (cpuProfileMatch) {
+      cpuProfileFile = cpuProfileMatch[1]
+    }
+
+    const heapProfileMatch = output.match(/Heap profile written to: (heap-profile-[^\s]+\.pb)/)
+    if (heapProfileMatch) {
+      heapProfileFile = heapProfileMatch[1]
+      // The process will exit naturally after creating the profiles and HTML
     }
   })
 
@@ -69,47 +75,69 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
   // Clean up the work script
   fs.unlinkSync(workScript)
 
-  // Check if profile was created
-  if (!profileFile) {
-    assert.fail('Profile generation failed - no profile file was created. Check if profiling signals were processed correctly.')
+  // Check if profiles were created
+  if (!cpuProfileFile) {
+    assert.fail('CPU profile generation failed - no CPU profile file was created. Check if profiling signals were processed correctly.')
+  }
+  if (!heapProfileFile) {
+    assert.fail('Heap profile generation failed - no heap profile file was created. Check if profiling signals were processed correctly.')
   }
 
-  const profilePath = path.join(outputDir, profileFile)
-  assert.ok(fs.existsSync(profilePath), 'Profile file should be created')
-  assert.ok(fs.statSync(profilePath).size > 0, 'Profile file should not be empty')
+  const cpuProfilePath = path.join(outputDir, cpuProfileFile)
+  const heapProfilePath = path.join(outputDir, heapProfileFile)
+  assert.ok(fs.existsSync(cpuProfilePath), 'CPU profile file should be created')
+  assert.ok(fs.statSync(cpuProfilePath).size > 0, 'CPU profile file should not be empty')
+  assert.ok(fs.existsSync(heapProfilePath), 'Heap profile file should be created')
+  assert.ok(fs.statSync(heapProfilePath).size > 0, 'Heap profile file should not be empty')
 
   // HTML generation is asynchronous - give it some time
   await new Promise(resolve => setTimeout(resolve, 2000))
 
-  // Check that HTML file was also auto-generated (with some tolerance for async generation)
-  const autoHtmlFile = profilePath.replace('.pb', '.html')
-  const htmlExists = fs.existsSync(autoHtmlFile)
+  // Check that HTML files were also auto-generated (with some tolerance for async generation)
+  const autoCpuHtmlFile = cpuProfilePath.replace('.pb', '.html')
+  const autoHeapHtmlFile = heapProfilePath.replace('.pb', '.html')
+  const cpuHtmlExists = fs.existsSync(autoCpuHtmlFile)
+  const heapHtmlExists = fs.existsSync(autoHeapHtmlFile)
 
-  if (htmlExists) {
-    console.log('✅ HTML file auto-generated successfully')
-    assert.ok(fs.statSync(autoHtmlFile).size > 0, 'HTML file should not be empty')
+  if (cpuHtmlExists) {
+    console.log('✅ CPU HTML file auto-generated successfully')
+    assert.ok(fs.statSync(autoCpuHtmlFile).size > 0, 'CPU HTML file should not be empty')
 
     // Check that JS file was also created
-    const autoJsFile = profilePath.replace('.pb', '.js')
-    if (fs.existsSync(autoJsFile)) {
-      assert.ok(fs.statSync(autoJsFile).size > 0, 'JS file should not be empty')
+    const autoCpuJsFile = cpuProfilePath.replace('.pb', '.js')
+    if (fs.existsSync(autoCpuJsFile)) {
+      assert.ok(fs.statSync(autoCpuJsFile).size > 0, 'CPU JS file should not be empty')
     }
   } else {
-    console.log('⚠️ HTML file not generated yet (async generation in progress)')
+    console.log('⚠️ CPU HTML file not generated yet (async generation in progress)')
   }
 
-  // Step 3: Generate flamegraph from the profile
+  if (heapHtmlExists) {
+    console.log('✅ Heap HTML file auto-generated successfully')
+    assert.ok(fs.statSync(autoHeapHtmlFile).size > 0, 'Heap HTML file should not be empty')
+
+    // Check that JS file was also created
+    const autoHeapJsFile = heapProfilePath.replace('.pb', '.js')
+    if (fs.existsSync(autoHeapJsFile)) {
+      assert.ok(fs.statSync(autoHeapJsFile).size > 0, 'Heap JS file should not be empty')
+    }
+  } else {
+    console.log('⚠️ Heap HTML file not generated yet (async generation in progress)')
+  }
+
+  // Step 3: Generate flamegraph from the CPU profile
   try {
     require.resolve('react-pprof/cli.js')
   } catch (error) {
     // Clean up and fail if react-pprof CLI is not available
-    fs.unlinkSync(profilePath)
+    fs.unlinkSync(cpuProfilePath)
+    fs.unlinkSync(heapProfilePath)
     assert.fail('react-pprof CLI not available - dependency should be installed')
   }
 
   const htmlFile = path.join(outputDir, 'test-flamegraph.html')
   const generateResult = await new Promise((resolve) => {
-    const generateChild = spawn('node', [cliPath, 'generate', '-o', htmlFile, profilePath], {
+    const generateChild = spawn('node', [cliPath, 'generate', '-o', htmlFile, cpuProfilePath], {
       stdio: 'pipe'
     })
 
@@ -129,8 +157,9 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
     })
   })
 
-  // Clean up profile file
-  fs.unlinkSync(profilePath)
+  // Clean up profile files
+  fs.unlinkSync(cpuProfilePath)
+  fs.unlinkSync(heapProfilePath)
 
   if (generateResult.code !== 0) {
     assert.fail(`Flamegraph generation failed with exit code ${generateResult.code}: ${generateResult.stderr || generateResult.stdout}`)
@@ -157,14 +186,24 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
     fs.unlinkSync(jsFile)
   }
 
-  // Clean up auto-generated files too
-  if (fs.existsSync(autoHtmlFile)) {
-    fs.unlinkSync(autoHtmlFile)
+  // Clean up auto-generated CPU files too
+  if (fs.existsSync(autoCpuHtmlFile)) {
+    fs.unlinkSync(autoCpuHtmlFile)
   }
 
-  const autoJsFile = autoHtmlFile.replace('.html', '.js')
-  if (fs.existsSync(autoJsFile)) {
-    fs.unlinkSync(autoJsFile)
+  const autoCpuJsFile = autoCpuHtmlFile.replace('.html', '.js')
+  if (fs.existsSync(autoCpuJsFile)) {
+    fs.unlinkSync(autoCpuJsFile)
+  }
+
+  // Clean up auto-generated heap files
+  if (fs.existsSync(autoHeapHtmlFile)) {
+    fs.unlinkSync(autoHeapHtmlFile)
+  }
+
+  const autoHeapJsFile = autoHeapHtmlFile.replace('.html', '.js')
+  if (fs.existsSync(autoHeapJsFile)) {
+    fs.unlinkSync(autoHeapJsFile)
   }
 })
 

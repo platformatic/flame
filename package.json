@@ -1,7 +1,7 @@
 {
   "name": "@platformatic/flame",
   "version": "1.0.0",
-  "description": "CPU profiling and flamegraph visualization tool using @platformatic/react-pprof",
+  "description": "CPU and heap profiling and flamegraph visualization tool using @platformatic/react-pprof",
   "main": "lib/index.js",
   "bin": {
     "flame": "./bin/flame.js"
@@ -15,13 +15,15 @@
     "test": "borp --timeout=30000",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "clean": "rm -f cpu-profile-*.* && rm -f test/cpu-profile-*.* && rm -f examples/cpu-profile-*.* && rm *.csv"
+    "clean": "rm -f cpu-profile-*.* heap-profile-*.* && rm -f test/cpu-profile-*.* test/heap-profile-*.* && rm -f examples/cpu-profile-*.* examples/heap-profile-*.* && rm -f *.csv"
   },
   "keywords": [
     "pprof",
     "profiling",
     "flamegraph",
     "cpu",
+    "heap",
+    "memory",
     "performance"
   ],
   "author": "Platformatic Inc. <oss@platformatic.dev> (http://platformatic.dev/)",
