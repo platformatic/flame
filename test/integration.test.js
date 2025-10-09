@@ -33,7 +33,8 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
   `)
 
   // Step 2: Start profiling the script using flame run command (auto-starts profiling)
-  const child = spawn('node', [cliPath, 'run', workScript], {
+  // Use --delay=none to start profiling immediately since the script exits quickly
+  const child = spawn('node', [cliPath, 'run', '--delay=none', workScript], {
     stdio: 'pipe',
     cwd: outputDir
   })

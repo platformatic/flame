@@ -200,8 +200,35 @@ console.log(`Process PID: ${process.pid}`)
 
 // Auto-start profiling if enabled
 if (autoStart) {
-  console.log('🔥 Auto-starting CPU and heap profilers...')
-  toggleProfiler()
+  // Parse delay option
+  const delayValue = process.env.FLAME_DELAY || 'until-started'
+
+  function startProfiling () {
+    console.log('🔥 Auto-starting CPU and heap profilers...')
+    toggleProfiler()
+  }
+
+  // Apply delay before starting profiler
+  if (delayValue === 'none') {
+    // No delay - start immediately
+    startProfiling()
+  } else if (delayValue === 'until-started') {
+    // Special case: delay until next full event loop tick
+    // setImmediate runs after I/O events but before timers
+    // setTimeout(..., 0) then ensures we're at the start of the next event loop iteration
+    setImmediate(() => {
+      setTimeout(startProfiling, 0)
+    })
+  } else {
+    // Numeric delay in milliseconds
+    const delayMs = parseInt(delayValue, 10)
+    if (!isNaN(delayMs) && delayMs >= 0) {
+      setTimeout(startProfiling, delayMs)
+    } else {
+      console.error(`Invalid FLAME_DELAY value: ${delayValue}. Starting immediately.`)
+      startProfiling()
+    }
+  }
 
   let exitHandlerCalled = false
 
