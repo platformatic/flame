@@ -30,6 +30,10 @@ const { values: args, positionals } = parseArgs({
     },
     'node-options': {
       type: 'string'
+    },
+    delay: {
+      type: 'string',
+      short: 'd'
     }
   },
   allowPositionals: true
@@ -53,13 +57,17 @@ Options:
   -o, --output <file>     Output HTML file (for generate command)
   -p, --profile <file>    Profile file to use (for run command)
   -m, --manual           Manual profiling mode (require SIGUSR2 to start)
+  -d, --delay <value>    Delay before starting profiler (ms, 'none', or 'until-started', default: 'until-started')
       --node-options <options>  Node.js CLI options to pass to the profiled process
   -h, --help             Show this help message
   -v, --version          Show version number
 
 Examples:
-  flame run server.js                                      # Auto-start profiling
+  flame run server.js                                      # Auto-start profiling with default delay
   flame run -m server.js                                   # Manual profiling (send SIGUSR2 to start)
+  flame run --delay=1000 server.js                         # Start profiling after 1 second
+  flame run --delay=none server.js                         # Start profiling immediately
+  flame run --delay=until-started server.js                # Start profiling after next event loop tick (default)
   flame run --node-options="--require ts-node/register" server.ts     # With Node.js options
   flame run --node-options="--import ./loader.js --max-old-space-size=4096" server.js
   flame generate profile.pb.gz
@@ -93,7 +101,20 @@ async function main () {
         const scriptArgs = positionals.slice(2)
         const autoStart = !args.manual
         const nodeOptions = args['node-options'] ? args['node-options'].split(' ').filter(opt => opt.length > 0) : []
-        const { pid, process: childProcess } = startProfiling(script, scriptArgs, { autoStart, nodeOptions })
+
+        // Parse delay option (default: 'until-started')
+        const delay = args.delay || 'until-started'
+
+        // Validate delay value
+        if (delay !== 'none' && delay !== 'until-started') {
+          const delayMs = parseInt(delay, 10)
+          if (isNaN(delayMs) || delayMs < 0) {
+            console.error(`Error: Invalid delay value '${delay}'. Must be a number (ms), 'none', or 'until-started'.`)
+            process.exit(1)
+          }
+        }
+
+        const { pid, process: childProcess } = startProfiling(script, scriptArgs, { autoStart, nodeOptions, delay })
 
         console.log(`🔥 Started profiling process ${pid}`)
         if (autoStart) {
