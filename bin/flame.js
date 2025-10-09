@@ -27,6 +27,9 @@ const { values: args, positionals } = parseArgs({
     manual: {
       type: 'boolean',
       short: 'm'
+    },
+    'node-options': {
+      type: 'string'
     }
   },
   allowPositionals: true
@@ -47,15 +50,18 @@ Commands:
   generate <pprof-file>  Generate HTML flamegraph from pprof file
 
 Options:
-  -o, --output <file>    Output HTML file (for generate command)
-  -p, --profile <file>   Profile file to use (for run command)
-  -m, --manual          Manual profiling mode (require SIGUSR2 to start)
-  -h, --help            Show this help message
-  -v, --version         Show version number
+  -o, --output <file>     Output HTML file (for generate command)
+  -p, --profile <file>    Profile file to use (for run command)
+  -m, --manual           Manual profiling mode (require SIGUSR2 to start)
+      --node-options <options>  Node.js CLI options to pass to the profiled process
+  -h, --help             Show this help message
+  -v, --version          Show version number
 
 Examples:
-  flame run server.js              # Auto-start profiling
-  flame run -m server.js           # Manual profiling (send SIGUSR2 to start)
+  flame run server.js                                      # Auto-start profiling
+  flame run -m server.js                                   # Manual profiling (send SIGUSR2 to start)
+  flame run --node-options="--require ts-node/register" server.ts     # With Node.js options
+  flame run --node-options="--import ./loader.js --max-old-space-size=4096" server.js
   flame generate profile.pb.gz
   flame generate -o flamegraph.html profile.pb.gz
 `)
@@ -86,7 +92,8 @@ async function main () {
 
         const scriptArgs = positionals.slice(2)
         const autoStart = !args.manual
-        const { pid, process: childProcess } = startProfiling(script, scriptArgs, { autoStart })
+        const nodeOptions = args['node-options'] ? args['node-options'].split(' ').filter(opt => opt.length > 0) : []
+        const { pid, process: childProcess } = startProfiling(script, scriptArgs, { autoStart, nodeOptions })
 
         console.log(`🔥 Started profiling process ${pid}`)
         if (autoStart) {
