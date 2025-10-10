@@ -140,4 +140,5 @@ vite.config.ts.timestamp-*
 
 # Generated profile files from flame profiling
 cpu-profile-*.*
+heap-profile-*.*
 **/*.csv
