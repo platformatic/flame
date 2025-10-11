@@ -48,7 +48,7 @@
     "@fastify/helmet": "^13.0.1",
     "@fastify/pre-commit": "^2.2.0",
     "autocannon": "^8.0.0",
-    "borp": "^0.20.1",
+    "borp": "^0.21.0",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
     "eslint": "^9.0.0",
