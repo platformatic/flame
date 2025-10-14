@@ -172,8 +172,8 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
 
   // Verify the output contains expected success messages
   assert.ok(
-    generateResult.stdout.includes('Generated HTML output') ||
-    generateResult.stdout.includes('HTML'),
+    generateResult.stdout.includes('flamegraph generated') ||
+    generateResult.stdout.includes('file://'),
     'Should indicate successful HTML generation'
   )
 

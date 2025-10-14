@@ -161,11 +161,12 @@ async function main () {
         }
 
         const outputFile = args.output || `${path.basename(pprofFile, path.extname(pprofFile))}.html`
+        const profileType = path.basename(pprofFile).includes('heap') ? 'Heap' : 'CPU'
 
-        console.log(`Generating flamegraph from ${pprofFile}...`)
-        const result = await generateFlamegraph(pprofFile, outputFile)
-        console.log(`Flamegraph generated: ${outputFile}`)
-        console.log(result.stdout)
+        console.log(`🔥 Generating ${profileType} flamegraph from ${pprofFile}...`)
+        await generateFlamegraph(pprofFile, outputFile)
+        console.log(`🔥 ${profileType} flamegraph generated: ${outputFile}`)
+        console.log(`🔥 Open file://${path.resolve(outputFile)} in your browser to view the flamegraph`)
         break
       }
 
