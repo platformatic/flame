@@ -155,7 +155,8 @@ test('CLI should handle SIGINT gracefully', async (t) => {
   `)
 
   const child = spawn('node', [cliPath, 'run', testScript], {
-    stdio: 'pipe'
+    stdio: 'pipe',
+    cwd: __dirname // Run in test directory so profile files are created there
   })
 
   let stdout = ''
@@ -180,8 +181,17 @@ test('CLI should handle SIGINT gracefully', async (t) => {
     })
   ])
 
-  // Clean up
+  // Clean up test script
   fs.unlinkSync(testScript)
+
+  // Clean up any generated profile files in test directory
+  const files = fs.readdirSync(__dirname)
+  files.forEach(file => {
+    if ((file.startsWith('cpu-profile-') || file.startsWith('heap-profile-')) &&
+        (file.endsWith('.pb') || file.endsWith('.html') || file.endsWith('.js'))) {
+      fs.unlinkSync(path.join(__dirname, file))
+    }
+  })
 
   // Verify the CLI responded to SIGINT by exiting
   assert.notStrictEqual(exitCode, undefined, 'Process should exit after receiving SIGINT')

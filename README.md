@@ -7,6 +7,7 @@
 - **Dual Profiling**: Captures both CPU and heap profiles concurrently for comprehensive performance insights
 - **Auto-Start Profiling**: Profiling starts immediately when using `flame run` (default behavior)
 - **Automatic Flamegraph Generation**: Interactive HTML flamegraphs are created automatically for both CPU and heap profiles on exit
+- **Sourcemap Support**: Automatically translates transpiled code locations back to original source files (TypeScript, bundled JavaScript, etc.)
 - **Clear File Path Display**: Shows exact paths and browser URLs for generated files
 - **Manual Control**: Optional manual mode with signal-based control using `SIGUSR2`
 - **Interactive Visualization**: WebGL-based HTML flamegraphs with zoom, search, and filtering
@@ -73,10 +74,13 @@ Commands:
   toggle                 Toggle profiling for running flame processes
 
 Options:
-  -o, --output <file>    Output HTML file (for generate command)
-  -m, --manual          Manual profiling mode (require SIGUSR2 to start)
-  -h, --help            Show help message
-  -v, --version         Show version number
+  -o, --output <file>       Output HTML file (for generate command)
+  -m, --manual             Manual profiling mode (require SIGUSR2 to start)
+  -d, --delay <value>      Delay before starting profiler (ms, 'none', or 'until-started')
+  -s, --sourcemap-dirs <dirs>  Directories to search for sourcemaps (colon/semicolon-separated)
+      --node-options <options>  Node.js CLI options to pass to the profiled process
+  -h, --help               Show help message
+  -v, --version            Show version number
 ```
 
 ## Programmatic API
@@ -108,6 +112,56 @@ const profile = await parseProfile('profile.pb')
 2. **Auto-Generation on Exit**: Profile (.pb) files and interactive HTML flamegraphs are automatically created for both CPU and heap profiles when the process exits
 3. **Manual Mode**: Use `--manual` flag to require `SIGUSR2` signals for start/stop control (no auto-HTML generation)
 4. **Interactive Visualization**: The `@platformatic/react-pprof` library generates interactive WebGL-based HTML flamegraphs for both profile types
+
+## Sourcemap Support
+
+When profiling transpiled or bundled applications (TypeScript, Webpack, ESBuild, etc.), the flame tool can automatically translate stack traces from generated code back to your original source files using sourcemaps.
+
+### Usage
+
+```bash
+# Profile a TypeScript application with sourcemap support
+flame run --sourcemap-dirs=dist server.js
+
+# Search multiple directories (colon or semicolon separated)
+flame run --sourcemap-dirs=dist:build:out server.js
+```
+
+### How It Works
+
+1. The tool searches specified directories for `.map`, `.js.map`, `.cjs.map`, and `.mjs.map` files
+2. During profiling, stack frame locations are automatically translated from generated code to source locations
+3. The resulting flamegraph shows your original source file paths and line numbers
+
+### Programmatic API
+
+```javascript
+const { startProfiling } = require('@platformatic/flame')
+
+startProfiling('dist/server.js', [], {
+  autoStart: true,
+  sourcemapDirs: ['dist', 'build']  // Can be a string or array
+})
+```
+
+### Environment Variables
+
+Sourcemap support can also be controlled via environment variables:
+
+```bash
+# Specify directories (colon/semicolon separated)
+export FLAME_SOURCEMAP_DIRS="dist:build"
+
+# Then run normally
+flame run server.js
+```
+
+### Notes
+
+- Sourcemaps are loaded at startup and applied during profile capture
+- The tool excludes `node_modules` directories when searching
+- If a sourcemap cannot be found or fails to parse, the original generated location is preserved
+- Both CPU and heap profiles benefit from sourcemap translation
 
 ## Profile Files
 

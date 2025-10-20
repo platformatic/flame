@@ -34,6 +34,10 @@ const { values: args, positionals } = parseArgs({
     delay: {
       type: 'string',
       short: 'd'
+    },
+    'sourcemap-dirs': {
+      type: 'string',
+      short: 's'
     }
   },
   allowPositionals: true
@@ -58,6 +62,7 @@ Options:
   -p, --profile <file>    Profile file to use (for run command)
   -m, --manual           Manual profiling mode (require SIGUSR2 to start)
   -d, --delay <value>    Delay before starting profiler (ms, 'none', or 'until-started', default: 'until-started')
+  -s, --sourcemap-dirs <dirs>  Directories to search for sourcemaps (colon/semicolon-separated)
       --node-options <options>  Node.js CLI options to pass to the profiled process
   -h, --help             Show this help message
   -v, --version          Show version number
@@ -68,6 +73,7 @@ Examples:
   flame run --delay=1000 server.js                         # Start profiling after 1 second
   flame run --delay=none server.js                         # Start profiling immediately
   flame run --delay=until-started server.js                # Start profiling after next event loop tick (default)
+  flame run --sourcemap-dirs=dist:build server.js          # Enable sourcemap support
   flame run --node-options="--require ts-node/register" server.ts     # With Node.js options
   flame run --node-options="--import ./loader.js --max-old-space-size=4096" server.js
   flame generate profile.pb.gz
@@ -114,7 +120,17 @@ async function main () {
           }
         }
 
-        const { pid, process: childProcess } = startProfiling(script, scriptArgs, { autoStart, nodeOptions, delay })
+        // Parse sourcemap options
+        const sourcemapDirs = args['sourcemap-dirs']
+          ? args['sourcemap-dirs'].split(/[:;]/).filter(d => d.trim())
+          : undefined
+
+        const { pid, process: childProcess } = startProfiling(script, scriptArgs, {
+          autoStart,
+          nodeOptions,
+          delay,
+          sourcemapDirs
+        })
 
         console.log(`🔥 Started profiling process ${pid}`)
         if (autoStart) {
