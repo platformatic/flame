@@ -9,7 +9,30 @@ const cpuProfiler = pprof.time
 const heapProfiler = pprof.heap
 let isCpuProfilerRunning = false
 let isHeapProfilerRunning = false
+let sourceMapper = null
 const autoStart = process.env.FLAME_AUTO_START === 'true'
+
+// Initialize sourcemap support if enabled
+const sourcemapDirs = process.env.FLAME_SOURCEMAP_DIRS
+
+if (sourcemapDirs) {
+  const dirs = sourcemapDirs.split(path.delimiter).filter(d => d.trim())
+
+  if (dirs.length > 0) {
+    console.log(`🗺️  Initializing sourcemap support for directories: ${dirs.join(', ')}`)
+
+    const { SourceMapper } = require('@datadog/pprof/out/src/sourcemapper/sourcemapper')
+
+    SourceMapper.create(dirs)
+      .then(mapper => {
+        sourceMapper = mapper
+        console.log('🗺️  Sourcemap initialization complete')
+      })
+      .catch(error => {
+        console.error('⚠️  Warning: Failed to initialize sourcemaps:', error.message)
+      })
+  }
+}
 
 function generateFlamegraph (pprofPath, outputPath) {
   return new Promise((resolve, reject) => {
@@ -60,17 +83,23 @@ function stopProfilerQuick () {
       const cpuFilename = `cpu-profile-${timestamp}.pb`
       fs.writeFileSync(cpuFilename, cpuProfile)
       console.log(`🔥 CPU profile written to: ${cpuFilename}`)
+      if (sourceMapper) {
+        console.log('🗺️  Profile includes sourcemap translations')
+      }
       filenames.push(cpuFilename)
       isCpuProfilerRunning = false
     }
 
     if (isHeapProfilerRunning) {
-      const heapProfileData = heapProfiler.profile()
+      const heapProfileData = heapProfiler.profile(undefined, sourceMapper)
       heapProfiler.stop()
       const heapProfile = heapProfileData.encode()
       const heapFilename = `heap-profile-${timestamp}.pb`
       fs.writeFileSync(heapFilename, heapProfile)
       console.log(`🔥 Heap profile written to: ${heapFilename}`)
+      if (sourceMapper) {
+        console.log('🗺️  Profile includes sourcemap translations')
+      }
       filenames.push(heapFilename)
       isHeapProfilerRunning = false
     }
@@ -100,6 +129,9 @@ async function stopProfilerAndSave (generateHtml = false) {
       const cpuFilename = `cpu-profile-${timestamp}.pb`
       fs.writeFileSync(cpuFilename, cpuProfile)
       console.log(`🔥 CPU profile written to: ${cpuFilename}`)
+      if (sourceMapper) {
+        console.log('🗺️  Profile includes sourcemap translations')
+      }
       filenames.push(cpuFilename)
       isCpuProfilerRunning = false
 
@@ -117,12 +149,15 @@ async function stopProfilerAndSave (generateHtml = false) {
     }
 
     if (isHeapProfilerRunning) {
-      const heapProfileData = heapProfiler.profile()
+      const heapProfileData = heapProfiler.profile(undefined, sourceMapper)
       heapProfiler.stop()
       const heapProfile = heapProfileData.encode()
       const heapFilename = `heap-profile-${timestamp}.pb`
       fs.writeFileSync(heapFilename, heapProfile)
       console.log(`🔥 Heap profile written to: ${heapFilename}`)
+      if (sourceMapper) {
+        console.log('🗺️  Profile includes sourcemap translations')
+      }
       filenames.push(heapFilename)
       isHeapProfilerRunning = false
 
@@ -173,7 +208,9 @@ function generateHtmlAsync (filenames) {
 function toggleProfiler () {
   if (!isCpuProfilerRunning && !isHeapProfilerRunning) {
     console.log('Starting CPU and heap profilers...')
-    cpuProfiler.start()
+    // Start CPU profiler with sourcemap support if available
+    const cpuProfilerOptions = sourceMapper ? { sourceMapper } : undefined
+    cpuProfiler.start(cpuProfilerOptions)
     // Start heap profiler with default parameters
     // intervalBytes: 512KB (512 * 1024)
     // stackDepth: 64
