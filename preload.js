@@ -14,6 +14,7 @@ const autoStart = process.env.FLAME_AUTO_START === 'true'
 
 // Initialize sourcemap support if enabled
 const sourcemapDirs = process.env.FLAME_SOURCEMAP_DIRS
+let sourceMapperPromise = null
 
 if (sourcemapDirs) {
   const dirs = sourcemapDirs.split(path.delimiter).filter(d => d.trim())
@@ -23,13 +24,15 @@ if (sourcemapDirs) {
 
     const { SourceMapper } = require('@datadog/pprof/out/src/sourcemapper/sourcemapper')
 
-    SourceMapper.create(dirs)
+    sourceMapperPromise = SourceMapper.create(dirs)
       .then(mapper => {
         sourceMapper = mapper
         console.log('🗺️  Sourcemap initialization complete')
+        return mapper
       })
       .catch(error => {
         console.error('⚠️  Warning: Failed to initialize sourcemaps:', error.message)
+        return null
       })
   }
 }
@@ -240,7 +243,11 @@ if (autoStart) {
   // Parse delay option
   const delayValue = process.env.FLAME_DELAY || 'until-started'
 
-  function startProfiling () {
+  async function startProfiling () {
+    // Wait for sourcemaps to be initialized before starting profiling
+    if (sourceMapperPromise) {
+      await sourceMapperPromise
+    }
     console.log('🔥 Auto-starting CPU and heap profilers...')
     toggleProfiler()
   }
