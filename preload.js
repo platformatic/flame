@@ -14,27 +14,172 @@ const autoStart = process.env.FLAME_AUTO_START === 'true'
 
 // Initialize sourcemap support if enabled
 const sourcemapDirs = process.env.FLAME_SOURCEMAP_DIRS
+const nodeModulesSourceMaps = process.env.FLAME_NODE_MODULES_SOURCE_MAPS
 let sourceMapperPromise = null
+let nodeModulesMapperPromise = null
 
-if (sourcemapDirs) {
-  const dirs = sourcemapDirs.split(path.delimiter).filter(d => d.trim())
+// Helper: resolve module path from node_modules
+function resolveModulePath (appPath, moduleName) {
+  try {
+    const resolved = require.resolve(moduleName, { paths: [appPath] })
+    const nodeModulesIndex = resolved.lastIndexOf('node_modules')
+    if (nodeModulesIndex === -1) return null
+
+    const afterNodeModules = resolved.substring(nodeModulesIndex + 'node_modules'.length + 1)
+    const parts = afterNodeModules.split(path.sep)
+
+    if (moduleName.startsWith('@')) {
+      return path.join(resolved.substring(0, nodeModulesIndex), 'node_modules', parts[0], parts[1])
+    } else {
+      return path.join(resolved.substring(0, nodeModulesIndex), 'node_modules', parts[0])
+    }
+  } catch {
+    return null
+  }
+}
+
+// Helper: walk directory for .map files
+async function * walkForMapFiles (dir) {
+  const fsPromises = require('fs').promises
+  async function * walkRecursive (currentDir) {
+    try {
+      const dirHandle = await fsPromises.opendir(currentDir)
+      for await (const entry of dirHandle) {
+        const entryPath = path.join(currentDir, entry.name)
+        if (entry.isDirectory() && entry.name !== '.git') {
+          yield * walkRecursive(entryPath)
+        } else if (entry.isFile() && /\.[cm]?js\.map$/.test(entry.name)) {
+          yield entryPath
+        }
+      }
+    } catch {
+      // Silently ignore permission errors
+    }
+  }
+  yield * walkRecursive(dir)
+}
+
+// Helper: process sourcemap file
+async function processSourceMapFile (mapPath) {
+  try {
+    const fsPromises = require('fs').promises
+    const sourceMap = require('source-map')
+
+    const contents = await fsPromises.readFile(mapPath, 'utf8')
+    const consumer = await new sourceMap.SourceMapConsumer(contents)
+
+    const dir = path.dirname(mapPath)
+    const generatedPathCandidates = []
+
+    if (consumer.file) {
+      generatedPathCandidates.push(path.resolve(dir, consumer.file))
+    }
+    generatedPathCandidates.push(path.resolve(dir, path.basename(mapPath, '.map')))
+
+    for (const generatedPath of generatedPathCandidates) {
+      try {
+        await fsPromises.access(generatedPath)
+        return {
+          generatedPath,
+          info: { mapFileDir: dir, mapConsumer: consumer }
+        }
+      } catch {}
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+// Load sourcemaps from node_modules packages
+async function loadNodeModulesSourceMaps (moduleNames, debug = false) {
+  const entries = new Map()
+
+  for (const moduleName of moduleNames) {
+    const modulePath = resolveModulePath(process.cwd(), moduleName)
+    if (!modulePath) {
+      if (debug) {
+        console.warn(`⚠️  Could not resolve module: ${moduleName}`)
+      }
+      continue
+    }
+
+    if (debug) {
+      console.log(`🗺️  Scanning ${moduleName} for sourcemaps...`)
+    }
+
+    let mapCount = 0
+    for await (const mapFile of walkForMapFiles(modulePath)) {
+      const entry = await processSourceMapFile(mapFile)
+      if (entry) {
+        entries.set(entry.generatedPath, entry.info)
+        mapCount++
+      }
+    }
+
+    if (debug) {
+      console.log(`🗺️  Loaded ${mapCount} sourcemaps from ${moduleName}`)
+    }
+  }
+
+  return entries
+}
+
+// Start loading node_modules sourcemaps if configured
+if (nodeModulesSourceMaps) {
+  const mods = nodeModulesSourceMaps.split(',').filter(m => m.trim())
+
+  if (mods.length > 0) {
+    console.log(`🗺️  Loading sourcemaps from node_modules: ${mods.join(', ')}`)
+
+    nodeModulesMapperPromise = loadNodeModulesSourceMaps(mods, false)
+      .then(entries => {
+        console.log(`🗺️  Loaded ${entries.size} sourcemaps from node_modules`)
+        return entries
+      })
+      .catch(error => {
+        console.error('⚠️  Warning: Failed to load node_modules sourcemaps:', error.message)
+        return new Map()
+      })
+  }
+}
+
+// Parse sourcemap directories
+const dirs = sourcemapDirs
+  ? sourcemapDirs.split(path.delimiter).filter(d => d.trim())
+  : []
+
+// Initialize sourcemaps if we have either dirs or node_modules sourcemaps
+if (dirs.length > 0 || nodeModulesMapperPromise) {
+  const { SourceMapper } = require('@datadog/pprof/out/src/sourcemapper/sourcemapper')
 
   if (dirs.length > 0) {
     console.log(`🗺️  Initializing sourcemap support for directories: ${dirs.join(', ')}`)
-
-    const { SourceMapper } = require('@datadog/pprof/out/src/sourcemapper/sourcemapper')
-
-    sourceMapperPromise = SourceMapper.create(dirs)
-      .then(mapper => {
-        sourceMapper = mapper
-        console.log('🗺️  Sourcemap initialization complete')
-        return mapper
-      })
-      .catch(error => {
-        console.error('⚠️  Warning: Failed to initialize sourcemaps:', error.message)
-        return null
-      })
   }
+
+  sourceMapperPromise = (async () => {
+    try {
+      // Create SourceMapper from dirs if provided, otherwise create empty one
+      const mapper = dirs.length > 0
+        ? await SourceMapper.create(dirs)
+        : new SourceMapper(false)
+
+      // Merge node_modules sourcemaps if available
+      if (nodeModulesMapperPromise) {
+        const nodeModulesEntries = await nodeModulesMapperPromise
+        for (const [generatedPath, info] of nodeModulesEntries) {
+          mapper.infoMap.set(generatedPath, info)
+        }
+      }
+
+      sourceMapper = mapper
+      console.log('🗺️  Sourcemap initialization complete')
+      return mapper
+    } catch (error) {
+      console.error('⚠️  Warning: Failed to initialize sourcemaps:', error.message)
+      return null
+    }
+  })()
 }
 
 function generateFlamegraph (pprofPath, outputPath) {
