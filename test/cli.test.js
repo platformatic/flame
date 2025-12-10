@@ -102,6 +102,147 @@ test('CLI help should include node-options flag', async (t) => {
   assert.ok(result.stdout.includes('Node.js CLI options to pass'), 'Should show node-options description')
 })
 
+test('CLI help should include node-modules-source-maps flag', async (t) => {
+  const result = await runCli(['--help'])
+
+  assert.strictEqual(result.code, 0, 'Should exit successfully')
+  assert.ok(result.stdout.includes('--node-modules-source-maps'), 'Should show --node-modules-source-maps option')
+  assert.ok(result.stdout.includes('-n'), 'Should show -n short option')
+  assert.ok(result.stdout.includes('Node modules to load sourcemaps from'), 'Should show node-modules-source-maps description')
+})
+
+test('CLI should accept --node-modules-source-maps flag', async (t) => {
+  // Create a simple test script that checks for the env var
+  const testScript = path.join(__dirname, 'temp-node-modules-sourcemaps-test.js')
+  fs.writeFileSync(testScript, `
+    console.log('FLAME_NODE_MODULES_SOURCE_MAPS:', process.env.FLAME_NODE_MODULES_SOURCE_MAPS);
+    console.log('Test completed');
+    process.exit(0);
+  `)
+
+  const child = spawn('node', [cliPath, 'run', '--node-modules-source-maps=next,@next/next-server', testScript], {
+    stdio: 'pipe'
+  })
+
+  let stdout = ''
+
+  child.stdout.on('data', (data) => {
+    stdout += data.toString()
+  })
+
+  child.stderr.on('data', (data) => {
+    // Consume stderr to prevent blocking
+  })
+
+  // Wait for the process to complete or timeout after 5 seconds
+  const [exitCode] = await Promise.race([
+    once(child, 'close'),
+    new Promise((resolve) => {
+      setTimeout(() => {
+        child.kill('SIGKILL')
+        resolve([-1])
+      }, 5000)
+    })
+  ])
+
+  // Clean up
+  fs.unlinkSync(testScript)
+
+  // Verify the env var was passed correctly
+  assert.notStrictEqual(exitCode, -1, 'Process should complete before timeout')
+  assert.ok(stdout.includes('FLAME_NODE_MODULES_SOURCE_MAPS: next,@next/next-server'), 'Should pass node-modules-source-maps to the profiled process')
+})
+
+test('CLI should accept -n shorthand for node-modules-source-maps', async (t) => {
+  // Create a simple test script that checks for the env var
+  const testScript = path.join(__dirname, 'temp-node-modules-sourcemaps-short-test.js')
+  fs.writeFileSync(testScript, `
+    console.log('FLAME_NODE_MODULES_SOURCE_MAPS:', process.env.FLAME_NODE_MODULES_SOURCE_MAPS);
+    console.log('Test completed');
+    process.exit(0);
+  `)
+
+  const child = spawn('node', [cliPath, 'run', '-n', 'next', testScript], {
+    stdio: 'pipe'
+  })
+
+  let stdout = ''
+
+  child.stdout.on('data', (data) => {
+    stdout += data.toString()
+  })
+
+  child.stderr.on('data', (data) => {
+    // Consume stderr to prevent blocking
+  })
+
+  // Wait for the process to complete or timeout after 5 seconds
+  const [exitCode] = await Promise.race([
+    once(child, 'close'),
+    new Promise((resolve) => {
+      setTimeout(() => {
+        child.kill('SIGKILL')
+        resolve([-1])
+      }, 5000)
+    })
+  ])
+
+  // Clean up
+  fs.unlinkSync(testScript)
+
+  // Verify the env var was passed correctly
+  assert.notStrictEqual(exitCode, -1, 'Process should complete before timeout')
+  assert.ok(stdout.includes('FLAME_NODE_MODULES_SOURCE_MAPS: next'), 'Should pass node-modules-source-maps via -n shorthand')
+})
+
+test('CLI should accept both --sourcemap-dirs and --node-modules-source-maps together', async (t) => {
+  // Create a simple test script that checks for both env vars
+  const testScript = path.join(__dirname, 'temp-both-sourcemaps-test.js')
+  fs.writeFileSync(testScript, `
+    console.log('FLAME_SOURCEMAP_DIRS:', process.env.FLAME_SOURCEMAP_DIRS);
+    console.log('FLAME_NODE_MODULES_SOURCE_MAPS:', process.env.FLAME_NODE_MODULES_SOURCE_MAPS);
+    console.log('Test completed');
+    process.exit(0);
+  `)
+
+  // Use platform-appropriate separator for sourcemap-dirs input
+  const sourcemapDirsArg = `--sourcemap-dirs=dist${path.delimiter}build`
+  const child = spawn('node', [cliPath, 'run', sourcemapDirsArg, '--node-modules-source-maps=next,@next/next-server', testScript], {
+    stdio: 'pipe'
+  })
+
+  let stdout = ''
+
+  child.stdout.on('data', (data) => {
+    stdout += data.toString()
+  })
+
+  child.stderr.on('data', (data) => {
+    // Consume stderr to prevent blocking
+  })
+
+  // Wait for the process to complete or timeout after 5 seconds
+  const [exitCode] = await Promise.race([
+    once(child, 'close'),
+    new Promise((resolve) => {
+      setTimeout(() => {
+        child.kill('SIGKILL')
+        resolve([-1])
+      }, 5000)
+    })
+  ])
+
+  // Clean up
+  fs.unlinkSync(testScript)
+
+  // Verify both env vars were passed correctly
+  // The env var uses path.delimiter which is ';' on Windows and ':' on Unix
+  const expectedSourcemapDirs = `dist${path.delimiter}build`
+  assert.notStrictEqual(exitCode, -1, 'Process should complete before timeout')
+  assert.ok(stdout.includes(`FLAME_SOURCEMAP_DIRS: ${expectedSourcemapDirs}`), 'Should pass sourcemap-dirs to the profiled process')
+  assert.ok(stdout.includes('FLAME_NODE_MODULES_SOURCE_MAPS: next,@next/next-server'), 'Should pass node-modules-source-maps to the profiled process')
+})
+
 test('CLI should accept --node-options flag', async (t) => {
   // Create a simple test script that uses process.execArgv to verify node options were passed
   const testScript = path.join(__dirname, 'temp-node-options-test.js')

@@ -38,6 +38,10 @@ const { values: args, positionals } = parseArgs({
     'sourcemap-dirs': {
       type: 'string',
       short: 's'
+    },
+    'node-modules-source-maps': {
+      type: 'string',
+      short: 'n'
     }
   },
   allowPositionals: true
@@ -63,6 +67,7 @@ Options:
   -m, --manual           Manual profiling mode (require SIGUSR2 to start)
   -d, --delay <value>    Delay before starting profiler (ms, 'none', or 'until-started', default: 'until-started')
   -s, --sourcemap-dirs <dirs>  Directories to search for sourcemaps (colon/semicolon-separated)
+  -n, --node-modules-source-maps <mods>  Node modules to load sourcemaps from (comma-separated, e.g., "next,@next/next-server")
       --node-options <options>  Node.js CLI options to pass to the profiled process
   -h, --help             Show this help message
   -v, --version          Show version number
@@ -74,6 +79,7 @@ Examples:
   flame run --delay=none server.js                         # Start profiling immediately
   flame run --delay=until-started server.js                # Start profiling after next event loop tick (default)
   flame run --sourcemap-dirs=dist:build server.js          # Enable sourcemap support
+  flame run -n next,@next/next-server server.js            # Load Next.js sourcemaps from node_modules
   flame run --node-options="--require ts-node/register" server.ts     # With Node.js options
   flame run --node-options="--import ./loader.js --max-old-space-size=4096" server.js
   flame generate profile.pb.gz
@@ -125,11 +131,17 @@ async function main () {
           ? args['sourcemap-dirs'].split(/[:;]/).filter(d => d.trim())
           : undefined
 
+        // Parse node modules sourcemap options
+        const nodeModulesSourceMaps = args['node-modules-source-maps']
+          ? args['node-modules-source-maps'].split(',').map(s => s.trim())
+          : undefined
+
         const { pid, process: childProcess } = startProfiling(script, scriptArgs, {
           autoStart,
           nodeOptions,
           delay,
-          sourcemapDirs
+          sourcemapDirs,
+          nodeModulesSourceMaps
         })
 
         console.log(`🔥 Started profiling process ${pid}`)
