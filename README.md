@@ -7,6 +7,7 @@
 - **Dual Profiling**: Captures both CPU and heap profiles concurrently for comprehensive performance insights
 - **Auto-Start Profiling**: Profiling starts immediately when using `flame run` (default behavior)
 - **Automatic Flamegraph Generation**: Interactive HTML flamegraphs are created automatically for both CPU and heap profiles on exit
+- **LLM-Friendly Markdown Analysis**: Generates markdown reports with hotspot analysis, ideal for AI-assisted performance debugging
 - **Sourcemap Support**: Automatically translates transpiled code locations back to original source files (TypeScript, bundled JavaScript, etc.)
 - **Clear File Path Display**: Shows exact paths and browser URLs for generated files
 - **Manual Control**: Optional manual mode with signal-based control using `SIGUSR2`
@@ -34,10 +35,11 @@ flame run server.js
 # 🔥 Heap profile written to: heap-profile-2025-08-27T12-00-00-000Z.pb
 # 🔥 Generating CPU flamegraph...
 # 🔥 CPU flamegraph generated: cpu-profile-2025-08-27T12-00-00-000Z.html
+# 🔥 CPU markdown generated: cpu-profile-2025-08-27T12-00-00-000Z.md
 # 🔥 Generating heap flamegraph...
 # 🔥 Heap flamegraph generated: heap-profile-2025-08-27T12-00-00-000Z.html
+# 🔥 Heap markdown generated: heap-profile-2025-08-27T12-00-00-000Z.md
 # 🔥 Open file:///path/to/cpu-profile-2025-08-27T12-00-00-000Z.html in your browser to view the CPU flamegraph
-# 🔥 Open file:///path/to/heap-profile-2025-08-27T12-00-00-000Z.html in your browser to view the heap flamegraph
 ```
 
 ### Manual Profiling Mode
@@ -53,14 +55,17 @@ kill -USR2 <PID>
 flame toggle
 ```
 
-### Generate Flamegraph
+### Generate Flamegraph and Markdown
 
 ```bash
-# Generate HTML flamegraph from pprof file
+# Generate HTML flamegraph and markdown from pprof file
 flame generate cpu-profile-2024-01-01T12-00-00-000Z.pb
 
 # Specify custom output file
 flame generate -o my-flamegraph.html profile.pb.gz
+
+# Use detailed markdown format for comprehensive analysis
+flame generate --md-format=detailed profile.pb
 ```
 
 ## CLI Usage
@@ -70,7 +75,7 @@ flame [options] <command>
 
 Commands:
   run <script>           Run a script with profiling enabled
-  generate <pprof-file>  Generate HTML flamegraph from pprof file
+  generate <pprof-file>  Generate HTML flamegraph and markdown from pprof file
   toggle                 Toggle profiling for running flame processes
 
 Options:
@@ -78,6 +83,7 @@ Options:
   -m, --manual             Manual profiling mode (require SIGUSR2 to start)
   -d, --delay <value>      Delay before starting profiler (ms, 'none', or 'until-started')
   -s, --sourcemap-dirs <dirs>  Directories to search for sourcemaps (colon/semicolon-separated)
+      --md-format <format>  Markdown format: summary (default), detailed, or adaptive
       --node-options <options>  Node.js CLI options to pass to the profiled process
   -h, --help               Show help message
   -v, --version            Show version number
@@ -86,7 +92,7 @@ Options:
 ## Programmatic API
 
 ```javascript
-const { startProfiling, generateFlamegraph, parseProfile } = require('@platformatic/flame')
+const { startProfiling, generateFlamegraph, generateMarkdown, parseProfile } = require('@platformatic/flame')
 
 // Start profiling a script with auto-start (default)
 const { pid, toggleProfiler } = startProfiling('server.js', ['--port', '3000'], { autoStart: true })
@@ -102,6 +108,9 @@ toggleProfiler()
 // Generate interactive flamegraph from pprof file
 await generateFlamegraph('profile.pb.gz', 'flamegraph.html')
 
+// Generate LLM-friendly markdown analysis
+await generateMarkdown('profile.pb', 'analysis.md', { format: 'summary' })
+
 // Parse profile data
 const profile = await parseProfile('profile.pb')
 ```
@@ -109,9 +118,10 @@ const profile = await parseProfile('profile.pb')
 ## How It Works
 
 1. **Auto-Start Mode (Default)**: Both CPU and heap profiling begin immediately when `flame run` starts your script
-2. **Auto-Generation on Exit**: Profile (.pb) files and interactive HTML flamegraphs are automatically created for both CPU and heap profiles when the process exits
+2. **Auto-Generation on Exit**: Profile (.pb) files, interactive HTML flamegraphs, and markdown analysis files are automatically created for both CPU and heap profiles when the process exits
 3. **Manual Mode**: Use `--manual` flag to require `SIGUSR2` signals for start/stop control (no auto-HTML generation)
 4. **Interactive Visualization**: The `@platformatic/react-pprof` library generates interactive WebGL-based HTML flamegraphs for both profile types
+5. **Markdown Analysis**: The `pprof-to-md` library generates LLM-friendly markdown reports with hotspot tables for AI-assisted debugging
 
 ## Sourcemap Support
 
@@ -167,11 +177,23 @@ flame run server.js
 
 Profile files are saved with timestamps in the format:
 ```
-cpu-profile-2024-01-01T12-00-00-000Z.pb
+cpu-profile-2024-01-01T12-00-00-000Z.pb     # Binary pprof data
+cpu-profile-2024-01-01T12-00-00-000Z.html   # Interactive flamegraph
+cpu-profile-2024-01-01T12-00-00-000Z.md     # LLM-friendly markdown analysis
 heap-profile-2024-01-01T12-00-00-000Z.pb
+heap-profile-2024-01-01T12-00-00-000Z.html
+heap-profile-2024-01-01T12-00-00-000Z.md
 ```
 
-Both CPU and heap profiles share the same timestamp for easy correlation. The files are compressed Protocol Buffer format compatible with the pprof ecosystem.
+Both CPU and heap profiles share the same timestamp for easy correlation. The `.pb` files are compressed Protocol Buffer format compatible with the pprof ecosystem. The `.md` files contain hotspot analysis tables suitable for AI/LLM-assisted performance debugging.
+
+### Markdown Formats
+
+The `--md-format` option controls the markdown output:
+
+- **summary** (default): Compact hotspots table, ideal for AI triage and quick overview
+- **detailed**: Comprehensive analysis with full stack traces and detailed statistics
+- **adaptive**: Automatically chooses format based on profile complexity
 
 ## Integration with Existing Apps
 
@@ -200,14 +222,15 @@ curl http://localhost:3000
 curl http://localhost:3000
 curl http://localhost:3000
 
-# Stop the server (Ctrl-C) to automatically save profiles and generate HTML flamegraphs
+# Stop the server (Ctrl-C) to automatically save profiles and generate flamegraphs
 # You'll see the exact file paths and browser URLs in the output:
 # 🔥 CPU profile written to: cpu-profile-2025-08-27T15-30-45-123Z.pb
 # 🔥 Heap profile written to: heap-profile-2025-08-27T15-30-45-123Z.pb
 # 🔥 CPU flamegraph generated: cpu-profile-2025-08-27T15-30-45-123Z.html
+# 🔥 CPU markdown generated: cpu-profile-2025-08-27T15-30-45-123Z.md
 # 🔥 Heap flamegraph generated: heap-profile-2025-08-27T15-30-45-123Z.html
+# 🔥 Heap markdown generated: heap-profile-2025-08-27T15-30-45-123Z.md
 # 🔥 Open file:///path/to/cpu-profile-2025-08-27T15-30-45-123Z.html in your browser to view the CPU flamegraph
-# 🔥 Open file:///path/to/heap-profile-2025-08-27T15-30-45-123Z.html in your browser to view the heap flamegraph
 ```
 
 **Manual Mode:**
@@ -296,9 +319,10 @@ kill -USR2 <PID>
 
 ## Requirements
 
-- Node.js >= 18.0.0
-- `@datadog/pprof` for CPU profiling
-- `@platformatic/react-pprof` for flamegraph generation
+- Node.js >= 22.6.0
+- `@datadog/pprof` for CPU and heap profiling
+- `react-pprof` for flamegraph generation
+- `pprof-to-md` for markdown analysis generation
 
 ## License
 

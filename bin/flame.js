@@ -3,7 +3,7 @@
 const { parseArgs } = require('node:util')
 const fs = require('fs')
 const path = require('path')
-const { startProfiling, generateFlamegraph } = require('../lib/index.js')
+const { startProfiling, generateFlamegraph, generateMarkdown } = require('../lib/index.js')
 
 const { values: args, positionals } = parseArgs({
   args: process.argv.slice(2),
@@ -42,6 +42,9 @@ const { values: args, positionals } = parseArgs({
     'node-modules-source-maps': {
       type: 'string',
       short: 'n'
+    },
+    'md-format': {
+      type: 'string'
     }
   },
   allowPositionals: true
@@ -59,7 +62,7 @@ Usage: flame [options] <command>
 
 Commands:
   run <script>           Run a script with profiling enabled
-  generate <pprof-file>  Generate HTML flamegraph from pprof file
+  generate <pprof-file>  Generate HTML flamegraph and markdown from pprof file
 
 Options:
   -o, --output <file>     Output HTML file (for generate command)
@@ -69,6 +72,7 @@ Options:
   -s, --sourcemap-dirs <dirs>  Directories to search for sourcemaps (colon/semicolon-separated)
   -n, --node-modules-source-maps <mods>  Node modules to load sourcemaps from (comma-separated, e.g., "next,@next/next-server")
       --node-options <options>  Node.js CLI options to pass to the profiled process
+      --md-format <format>  Markdown format: summary (default), detailed, or adaptive
   -h, --help             Show this help message
   -v, --version          Show version number
 
@@ -80,6 +84,7 @@ Examples:
   flame run --delay=until-started server.js                # Start profiling after next event loop tick (default)
   flame run --sourcemap-dirs=dist:build server.js          # Enable sourcemap support
   flame run -n next,@next/next-server server.js            # Load Next.js sourcemaps from node_modules
+  flame run --md-format=detailed server.js                 # Use detailed markdown format
   flame run --node-options="--require ts-node/register" server.ts     # With Node.js options
   flame run --node-options="--import ./loader.js --max-old-space-size=4096" server.js
   flame generate profile.pb.gz
@@ -136,12 +141,20 @@ async function main () {
           ? args['node-modules-source-maps'].split(',').map(s => s.trim())
           : undefined
 
+        // Parse markdown format option
+        const mdFormat = args['md-format'] || 'summary'
+        if (!['summary', 'detailed', 'adaptive'].includes(mdFormat)) {
+          console.error(`Error: Invalid md-format value '${mdFormat}'. Must be 'summary', 'detailed', or 'adaptive'.`)
+          process.exit(1)
+        }
+
         const { pid, process: childProcess } = startProfiling(script, scriptArgs, {
           autoStart,
           nodeOptions,
           delay,
           sourcemapDirs,
-          nodeModulesSourceMaps
+          nodeModulesSourceMaps,
+          mdFormat
         })
 
         console.log(`🔥 Started profiling process ${pid}`)
@@ -188,13 +201,30 @@ async function main () {
           process.exit(1)
         }
 
+        // Parse markdown format option
+        const mdFormat = args['md-format'] || 'summary'
+        if (!['summary', 'detailed', 'adaptive'].includes(mdFormat)) {
+          console.error(`Error: Invalid md-format value '${mdFormat}'. Must be 'summary', 'detailed', or 'adaptive'.`)
+          process.exit(1)
+        }
+
         const outputFile = args.output || `${path.basename(pprofFile, path.extname(pprofFile))}.html`
+        const mdOutputFile = outputFile.replace(/\.html$/, '.md')
         const profileType = path.basename(pprofFile).includes('heap') ? 'Heap' : 'CPU'
 
         console.log(`🔥 Generating ${profileType} flamegraph from ${pprofFile}...`)
         await generateFlamegraph(pprofFile, outputFile)
         console.log(`🔥 ${profileType} flamegraph generated: ${outputFile}`)
         console.log(`🔥 Open file://${path.resolve(outputFile)} in your browser to view the flamegraph`)
+
+        // Generate markdown
+        console.log(`🔥 Generating ${profileType} markdown analysis...`)
+        try {
+          await generateMarkdown(pprofFile, mdOutputFile, { format: mdFormat })
+          console.log(`🔥 ${profileType} markdown generated: ${mdOutputFile}`)
+        } catch (error) {
+          console.error(`Warning: Failed to generate ${profileType} markdown:`, error.message)
+        }
         break
       }
 

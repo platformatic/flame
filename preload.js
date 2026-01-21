@@ -11,6 +11,7 @@ let isCpuProfilerRunning = false
 let isHeapProfilerRunning = false
 let sourceMapper = null
 const autoStart = process.env.FLAME_AUTO_START === 'true'
+const mdFormat = process.env.FLAME_MD_FORMAT || 'summary'
 
 // Initialize sourcemap support if enabled
 const sourcemapDirs = process.env.FLAME_SOURCEMAP_DIRS
@@ -215,6 +216,16 @@ function generateFlamegraph (pprofPath, outputPath) {
   })
 }
 
+async function generateMarkdown (pprofPath, outputPath, format = 'summary') {
+  const { convert } = await import('pprof-to-md')
+  const markdown = convert(pprofPath, {
+    format,
+    profileName: path.basename(pprofPath)
+  })
+  fs.writeFileSync(outputPath, markdown)
+  return { outputPath }
+}
+
 function stopProfilerQuick () {
   if (!isCpuProfilerRunning && !isHeapProfilerRunning) {
     return null
@@ -293,6 +304,16 @@ async function stopProfilerAndSave (generateHtml = false) {
         } catch (error) {
           console.error('Warning: Failed to generate CPU flamegraph:', error.message)
         }
+
+        // Generate markdown analysis
+        const mdFilename = cpuFilename.replace('.pb', '.md')
+        console.log('🔥 Generating CPU markdown analysis...')
+        try {
+          await generateMarkdown(cpuFilename, mdFilename, mdFormat)
+          console.log(`🔥 CPU markdown generated: ${mdFilename}`)
+        } catch (error) {
+          console.error('Warning: Failed to generate CPU markdown:', error.message)
+        }
       }
     }
 
@@ -318,6 +339,16 @@ async function stopProfilerAndSave (generateHtml = false) {
           console.log(`🔥 Open file://${path.resolve(htmlFilename)} in your browser to view the heap flamegraph`)
         } catch (error) {
           console.error('Warning: Failed to generate heap flamegraph:', error.message)
+        }
+
+        // Generate markdown analysis
+        const mdFilename = heapFilename.replace('.pb', '.md')
+        console.log('🔥 Generating heap markdown analysis...')
+        try {
+          await generateMarkdown(heapFilename, mdFilename, mdFormat)
+          console.log(`🔥 Heap markdown generated: ${mdFilename}`)
+        } catch (error) {
+          console.error('Warning: Failed to generate heap markdown:', error.message)
         }
       }
     }
@@ -349,6 +380,17 @@ function generateHtmlAsync (filenames) {
       })
       .catch(error => {
         console.error(`Warning: Failed to generate ${profileType} flamegraph:`, error.message)
+      })
+
+    // Generate markdown analysis
+    const mdFilename = filename.replace('.pb', '.md')
+    console.log(`🔥 Generating ${profileType} markdown analysis...`)
+    generateMarkdown(filename, mdFilename, mdFormat)
+      .then(() => {
+        console.log(`🔥 ${profileType} markdown generated: ${mdFilename}`)
+      })
+      .catch(error => {
+        console.error(`Warning: Failed to generate ${profileType} markdown:`, error.message)
       })
   })
 }

@@ -285,6 +285,86 @@ test('CLI should accept --node-options flag', async (t) => {
   assert.ok(stdout.includes('--max-old-space-size=512'), 'Should pass node options to the profiled process')
 })
 
+test('CLI help should include md-format flag', async (t) => {
+  const result = await runCli(['--help'])
+
+  assert.strictEqual(result.code, 0, 'Should exit successfully')
+  assert.ok(result.stdout.includes('--md-format'), 'Should show --md-format option')
+  assert.ok(result.stdout.includes('summary'), 'Should mention summary format')
+  assert.ok(result.stdout.includes('detailed'), 'Should mention detailed format')
+  assert.ok(result.stdout.includes('adaptive'), 'Should mention adaptive format')
+})
+
+test('CLI should accept --md-format flag for run command', async (t) => {
+  // Create a simple test script that checks for the env var
+  const testScript = path.join(__dirname, 'temp-md-format-test.js')
+  fs.writeFileSync(testScript, `
+    console.log('FLAME_MD_FORMAT:', process.env.FLAME_MD_FORMAT);
+    console.log('Test completed');
+    process.exit(0);
+  `)
+
+  const child = spawn('node', [cliPath, 'run', '--md-format=detailed', testScript], {
+    stdio: 'pipe'
+  })
+
+  let stdout = ''
+
+  child.stdout.on('data', (data) => {
+    stdout += data.toString()
+  })
+
+  child.stderr.on('data', (data) => {
+    // Consume stderr to prevent blocking
+  })
+
+  // Wait for the process to complete or timeout after 5 seconds
+  const [exitCode] = await Promise.race([
+    once(child, 'close'),
+    new Promise((resolve) => {
+      setTimeout(() => {
+        child.kill('SIGKILL')
+        resolve([-1])
+      }, 5000)
+    })
+  ])
+
+  // Clean up
+  fs.unlinkSync(testScript)
+
+  // Verify the env var was passed correctly
+  assert.notStrictEqual(exitCode, -1, 'Process should complete before timeout')
+  assert.ok(stdout.includes('FLAME_MD_FORMAT: detailed'), 'Should pass md-format to the profiled process')
+})
+
+test('CLI run command should reject invalid md-format', async (t) => {
+  // Create a simple test script
+  const testScript = path.join(__dirname, 'temp-invalid-md-format-test.js')
+  fs.writeFileSync(testScript, 'process.exit(0);')
+
+  const result = await runCli(['run', '--md-format=invalid', testScript])
+
+  // Clean up
+  fs.unlinkSync(testScript)
+
+  assert.strictEqual(result.code, 1, 'Should exit with error code')
+  assert.ok(result.stderr.includes('Invalid md-format'), 'Should show invalid md-format error')
+})
+
+test('CLI generate command should reject invalid md-format', async (t) => {
+  // Create a mock pprof file
+  const mockProfile = path.join(__dirname, 'temp-invalid-md-format-generate.pb')
+  fs.writeFileSync(mockProfile, Buffer.alloc(100))
+
+  const result = await runCli(['generate', '--md-format=invalid', mockProfile])
+
+  // Clean up
+  fs.unlinkSync(mockProfile)
+
+  assert.strictEqual(result.code, 1, 'Should exit with error code')
+  assert.ok(result.stderr.includes('Invalid md-format'), 'Should show invalid md-format error')
+})
+
 test('CLI should handle SIGINT gracefully', async (t) => {
   // Create a simple test script that runs for a while
   const testScript = path.join(__dirname, 'temp-long-script.js')
@@ -329,7 +409,7 @@ test('CLI should handle SIGINT gracefully', async (t) => {
   const files = fs.readdirSync(__dirname)
   files.forEach(file => {
     if ((file.startsWith('cpu-profile-') || file.startsWith('heap-profile-')) &&
-        (file.endsWith('.pb') || file.endsWith('.html') || file.endsWith('.js'))) {
+        (file.endsWith('.pb') || file.endsWith('.html') || file.endsWith('.js') || file.endsWith('.md'))) {
       fs.unlinkSync(path.join(__dirname, file))
     }
   })
