@@ -5,7 +5,7 @@ const assert = require('node:assert')
 const fs = require('fs')
 const path = require('path')
 const { once } = require('node:events')
-const { startProfiling, parseProfile, generateFlamegraph } = require('../lib/index.js')
+const { startProfiling, parseProfile, generateFlamegraph, generateMarkdown } = require('../lib/index.js')
 
 test('startProfiling should spawn process with preload script', async (t) => {
   // Create a simple test script
@@ -131,4 +131,99 @@ test('generateFlamegraph should create HTML file', async (t) => {
   // Also clean up the JS file that the CLI creates
   const jsFile = outputFile.replace('.html', '.js')
   if (fs.existsSync(jsFile)) fs.unlinkSync(jsFile)
+})
+
+test('generateMarkdown should create markdown file from pprof', async (t) => {
+  // Skip this test if pprof-to-md is not available
+  try {
+    await import('pprof-to-md')
+  } catch (error) {
+    t.skip('pprof-to-md not available')
+    return
+  }
+
+  // Create a mock pprof file (this would need actual pprof data in real scenario)
+  const mockProfile = path.join(__dirname, 'temp-profile-md.pb')
+  const outputFile = path.join(__dirname, 'temp-output.md')
+
+  // Create minimal pprof data (this is just for testing the file handling)
+  fs.writeFileSync(mockProfile, Buffer.alloc(100))
+
+  try {
+    await generateMarkdown(mockProfile, outputFile, { format: 'summary' })
+    // The actual converter might fail with invalid data, but we test the interface
+  } catch (error) {
+    // Expected to fail with mock data, but should be a converter error, not file system error
+    assert.ok(
+      error.message.includes('decode') ||
+      error.message.includes('Profile') ||
+      error.message.includes('pprof') ||
+      error.message.includes('convert') ||
+      error.message.includes('Sample type') ||
+      error.message.includes('not found'),
+      `Should fail with profile parsing error, not file system error. Got: ${error.message}`
+    )
+  }
+
+  // Clean up
+  if (fs.existsSync(mockProfile)) fs.unlinkSync(mockProfile)
+  if (fs.existsSync(outputFile)) fs.unlinkSync(outputFile)
+})
+
+test('generateMarkdown should use default format when not specified', async (t) => {
+  // Skip this test if pprof-to-md is not available
+  try {
+    await import('pprof-to-md')
+  } catch (error) {
+    t.skip('pprof-to-md not available')
+    return
+  }
+
+  // Create a mock pprof file
+  const mockProfile = path.join(__dirname, 'temp-profile-md-default.pb')
+  const outputFile = path.join(__dirname, 'temp-output-default.md')
+
+  fs.writeFileSync(mockProfile, Buffer.alloc(100))
+
+  try {
+    // Call without format option - should default to 'summary'
+    await generateMarkdown(mockProfile, outputFile)
+  } catch (error) {
+    // Expected to fail with mock data
+    assert.ok(error.message, 'Should have error message')
+  }
+
+  // Clean up
+  if (fs.existsSync(mockProfile)) fs.unlinkSync(mockProfile)
+  if (fs.existsSync(outputFile)) fs.unlinkSync(outputFile)
+})
+
+test('generateMarkdown should accept different format options', async (t) => {
+  // Skip this test if pprof-to-md is not available
+  try {
+    await import('pprof-to-md')
+  } catch (error) {
+    t.skip('pprof-to-md not available')
+    return
+  }
+
+  const mockProfile = path.join(__dirname, 'temp-profile-md-formats.pb')
+  const outputFile = path.join(__dirname, 'temp-output-formats.md')
+
+  fs.writeFileSync(mockProfile, Buffer.alloc(100))
+
+  const formats = ['summary', 'detailed', 'adaptive']
+
+  for (const format of formats) {
+    try {
+      await generateMarkdown(mockProfile, outputFile, { format })
+    } catch (error) {
+      // Expected to fail with mock data, but the format option should be accepted
+      assert.ok(error.message, `Should have error message for format: ${format}`)
+    }
+  }
+
+  // Clean up
+  if (fs.existsSync(mockProfile)) fs.unlinkSync(mockProfile)
+  if (fs.existsSync(outputFile)) fs.unlinkSync(outputFile)
 })

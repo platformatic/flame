@@ -97,8 +97,12 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
   // Check that HTML files were also auto-generated (with some tolerance for async generation)
   const autoCpuHtmlFile = cpuProfilePath.replace('.pb', '.html')
   const autoHeapHtmlFile = heapProfilePath.replace('.pb', '.html')
+  const autoCpuMdFile = cpuProfilePath.replace('.pb', '.md')
+  const autoHeapMdFile = heapProfilePath.replace('.pb', '.md')
   const cpuHtmlExists = fs.existsSync(autoCpuHtmlFile)
   const heapHtmlExists = fs.existsSync(autoHeapHtmlFile)
+  const cpuMdExists = fs.existsSync(autoCpuMdFile)
+  const heapMdExists = fs.existsSync(autoHeapMdFile)
 
   if (cpuHtmlExists) {
     console.log('✅ CPU HTML file auto-generated successfully')
@@ -113,6 +117,13 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
     console.log('⚠️ CPU HTML file not generated yet (async generation in progress)')
   }
 
+  if (cpuMdExists) {
+    console.log('✅ CPU markdown file auto-generated successfully')
+    assert.ok(fs.statSync(autoCpuMdFile).size > 0, 'CPU markdown file should not be empty')
+  } else {
+    console.log('⚠️ CPU markdown file not generated yet (async generation in progress)')
+  }
+
   if (heapHtmlExists) {
     console.log('✅ Heap HTML file auto-generated successfully')
     assert.ok(fs.statSync(autoHeapHtmlFile).size > 0, 'Heap HTML file should not be empty')
@@ -124,6 +135,13 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
     }
   } else {
     console.log('⚠️ Heap HTML file not generated yet (async generation in progress)')
+  }
+
+  if (heapMdExists) {
+    console.log('✅ Heap markdown file auto-generated successfully')
+    assert.ok(fs.statSync(autoHeapMdFile).size > 0, 'Heap markdown file should not be empty')
+  } else {
+    console.log('⚠️ Heap markdown file not generated yet (async generation in progress)')
   }
 
   // Step 3: Generate flamegraph from the CPU profile
@@ -187,6 +205,11 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
     fs.unlinkSync(jsFile)
   }
 
+  const mdFile = htmlFile.replace('.html', '.md')
+  if (fs.existsSync(mdFile)) {
+    fs.unlinkSync(mdFile)
+  }
+
   // Clean up auto-generated CPU files too
   if (fs.existsSync(autoCpuHtmlFile)) {
     fs.unlinkSync(autoCpuHtmlFile)
@@ -197,6 +220,10 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
     fs.unlinkSync(autoCpuJsFile)
   }
 
+  if (fs.existsSync(autoCpuMdFile)) {
+    fs.unlinkSync(autoCpuMdFile)
+  }
+
   // Clean up auto-generated heap files
   if (fs.existsSync(autoHeapHtmlFile)) {
     fs.unlinkSync(autoHeapHtmlFile)
@@ -205,6 +232,10 @@ test('integration: full workflow from profiling to flamegraph generation', { ski
   const autoHeapJsFile = autoHeapHtmlFile.replace('.html', '.js')
   if (fs.existsSync(autoHeapJsFile)) {
     fs.unlinkSync(autoHeapJsFile)
+  }
+
+  if (fs.existsSync(autoHeapMdFile)) {
+    fs.unlinkSync(autoHeapMdFile)
   }
 })
 
