@@ -40,7 +40,7 @@
     "@datadog/pprof": "^5.9.0",
     "fastify": "^5.5.0",
     "pprof-format": "^2.2.1",
-    "pprof-to-md": "^0.1.0",
+    "pprof-to-md": "^0.2.0",
     "react-pprof": "^1.4.0"
   },
   "devDependencies": {
