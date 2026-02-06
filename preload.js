@@ -181,12 +181,21 @@ if (dirs.length > 0 || nodeModulesMapperPromise) {
         // Match function declarations: function name( or async function name(
         const funcMatch = sourceLine.match(/(?:async\s+)?function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/)
         if (funcMatch) return funcMatch[1]
-        // Match arrow functions or method definitions: name = ( or name: ( or name(
-        const arrowMatch = sourceLine.match(/([a-zA-Z_$][a-zA-Z0-9_$]*)\s*[=:]\s*(?:async\s*)?\(/)
+        // Match arrow functions: name = ( or name = async (
+        const arrowMatch = sourceLine.match(/([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(?:async\s*)?\(/)
         if (arrowMatch) return arrowMatch[1]
-        // Match method shorthand: name( in object/class
+        // Match object property functions: name: function( or name: async function(
+        const propFuncMatch = sourceLine.match(/([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:\s*(?:async\s+)?function\s*\(/)
+        if (propFuncMatch) return propFuncMatch[1]
+        // Match method shorthand in class/object: name( but not control flow like if(
         const methodMatch = sourceLine.match(/^\s*(?:async\s+)?([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/)
-        if (methodMatch) return methodMatch[1]
+        if (methodMatch) {
+          const name = methodMatch[1]
+          // Exclude control flow keywords
+          if (!['if', 'else', 'for', 'while', 'switch', 'catch', 'with'].includes(name)) {
+            return name
+          }
+        }
         return null
       }
 
