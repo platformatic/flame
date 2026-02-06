@@ -153,6 +153,7 @@ const dirs = sourcemapDirs
 // Initialize sourcemaps if we have either dirs or node_modules sourcemaps
 if (dirs.length > 0 || nodeModulesMapperPromise) {
   const { SourceMapper } = require('@datadog/pprof/out/src/sourcemapper/sourcemapper')
+  const sourceMap = require('source-map')
 
   if (dirs.length > 0) {
     console.log(`🗺️  Initializing sourcemap support for directories: ${dirs.join(', ')}`)
@@ -170,6 +171,92 @@ if (dirs.length > 0 || nodeModulesMapperPromise) {
         const nodeModulesEntries = await nodeModulesMapperPromise
         for (const [generatedPath, info] of nodeModulesEntries) {
           mapper.infoMap.set(generatedPath, info)
+        }
+      }
+
+      // Helper to extract function name from source line
+      // Matches: function name(, async function name(, name = function(, name: function(, etc.
+      function extractFunctionName (sourceLine) {
+        if (!sourceLine) return null
+        // Match function declarations: function name( or async function name(
+        const funcMatch = sourceLine.match(/(?:async\s+)?function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/)
+        if (funcMatch) return funcMatch[1]
+        // Match arrow functions or method definitions: name = ( or name: ( or name(
+        const arrowMatch = sourceLine.match(/([a-zA-Z_$][a-zA-Z0-9_$]*)\s*[=:]\s*(?:async\s*)?\(/)
+        if (arrowMatch) return arrowMatch[1]
+        // Match method shorthand: name( in object/class
+        const methodMatch = sourceLine.match(/^\s*(?:async\s+)?([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/)
+        if (methodMatch) return methodMatch[1]
+        return null
+      }
+
+      // Cache for source content lines to avoid repeated parsing
+      const sourceContentCache = new Map()
+
+      // Override the mappingInfo method to use LEAST_UPPER_BOUND bias for better
+      // compatibility with Turbopack and other bundlers that generate minified
+      // files where mappings don't start at column 0
+      mapper.mappingInfo = function (location) {
+        const inputPath = path.normalize(location.file)
+        const entry = this.getMappingInfo(inputPath)
+        if (entry === null) {
+          return location
+        }
+
+        const generatedPos = {
+          line: location.line,
+          column: location.column > 0 ? location.column - 1 : 0
+        }
+
+        const consumer = entry.mapConsumer
+
+        // First try default lookup
+        let pos = consumer.originalPositionFor(generatedPos)
+
+        // If no mapping found, try with LEAST_UPPER_BOUND bias to find
+        // the nearest mapping to the right (useful for Turbopack's loader code
+        // that occupies the beginning of lines without mappings)
+        if (pos.source === null) {
+          pos = consumer.originalPositionFor({
+            ...generatedPos,
+            bias: sourceMap.SourceMapConsumer.LEAST_UPPER_BOUND
+          })
+        }
+
+        if (pos.source === null) {
+          return location
+        }
+
+        let resolvedName = pos.name || location.name
+
+        // If no name from sourcemap, try to extract from sourcesContent
+        if (!pos.name && pos.source && pos.line) {
+          try {
+            // Get or cache the source content lines
+            let lines = sourceContentCache.get(pos.source)
+            if (!lines) {
+              const content = consumer.sourceContentFor(pos.source, true)
+              if (content) {
+                lines = content.split('\n')
+                sourceContentCache.set(pos.source, lines)
+              }
+            }
+            if (lines && lines[pos.line - 1]) {
+              const extractedName = extractFunctionName(lines[pos.line - 1])
+              if (extractedName) {
+                resolvedName = extractedName
+              }
+            }
+          } catch (e) {
+            // Ignore errors in name extraction
+          }
+        }
+
+        return {
+          file: path.resolve(entry.mapFileDir, pos.source),
+          line: pos.line || undefined,
+          name: resolvedName,
+          column: pos.column === null ? undefined : pos.column + 1
         }
       }
 
