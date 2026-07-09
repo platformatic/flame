@@ -37,7 +37,7 @@
     "url": "https://github.com/platformatic/flame/issues"
   },
   "dependencies": {
-    "@datadog/pprof": "^5.9.0",
+    "@datadog/pprof": "5.15.1",
     "fastify": "^5.5.0",
     "pprof-format": "^2.2.1",
     "pprof-to-md": "^0.2.0",
