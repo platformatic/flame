@@ -4,6 +4,7 @@ const fs = require('fs')
 const path = require('path')
 const pprof = require('@datadog/pprof')
 const { spawn } = require('child_process')
+const { DeoptTracker, appendDeoptMarkdown } = require('./lib/deopt.js')
 
 const cpuProfiler = pprof.time
 const heapProfiler = pprof.heap
@@ -12,6 +13,28 @@ let isHeapProfilerRunning = false
 let sourceMapper = null
 const autoStart = process.env.FLAME_AUTO_START === 'true'
 const mdFormat = process.env.FLAME_MD_FORMAT || 'summary'
+
+// V8 deopt tracking, enabled by `flame run --deopt`
+const deoptTracker = process.env.FLAME_DEOPT_TRACE ? new DeoptTracker(process.env.FLAME_DEOPT_TRACE) : null
+
+/**
+ * Stop the CPU profiler and attach the deopts of the profiling window
+ * @returns {object} pprof-format Profile
+ */
+function stopCpuProfiler () {
+  const cpuProfileData = cpuProfiler.stop()
+  if (deoptTracker) {
+    try {
+      const result = deoptTracker.stop(cpuProfileData)
+      if (result) {
+        console.log(`🔥 Recorded ${result.deopts} V8 deopts in ${result.functions} functions`)
+      }
+    } catch (error) {
+      console.error('Warning: Failed to collect V8 deopts:', error.message)
+    }
+  }
+  return cpuProfileData
+}
 
 // Initialize sourcemap support if enabled
 const sourcemapDirs = process.env.FLAME_SOURCEMAP_DIRS
@@ -318,7 +341,7 @@ async function generateMarkdown (pprofPath, outputPath, format = 'summary') {
     format,
     profileName: path.basename(pprofPath)
   })
-  fs.writeFileSync(outputPath, markdown)
+  fs.writeFileSync(outputPath, await appendDeoptMarkdown(pprofPath, markdown))
   return { outputPath }
 }
 
@@ -333,7 +356,7 @@ function stopProfilerQuick () {
 
   try {
     if (isCpuProfilerRunning) {
-      const cpuProfileData = cpuProfiler.stop()
+      const cpuProfileData = stopCpuProfiler()
       const cpuProfile = cpuProfileData.encode()
       const cpuFilename = `cpu-profile-${timestamp}.pb`
       fs.writeFileSync(cpuFilename, cpuProfile)
@@ -379,7 +402,7 @@ async function stopProfilerAndSave (generateHtml = false) {
 
   try {
     if (isCpuProfilerRunning) {
-      const cpuProfileData = cpuProfiler.stop()
+      const cpuProfileData = stopCpuProfiler()
       const cpuProfile = cpuProfileData.encode()
       const cpuFilename = `cpu-profile-${timestamp}.pb`
       fs.writeFileSync(cpuFilename, cpuProfile)
@@ -497,6 +520,9 @@ function toggleProfiler () {
     // Start CPU profiler with sourcemap support if available
     const cpuProfilerOptions = sourceMapper ? { sourceMapper } : undefined
     cpuProfiler.start(cpuProfilerOptions)
+    if (deoptTracker) {
+      deoptTracker.start()
+    }
     // Start heap profiler with default parameters
     // intervalBytes: 512KB (512 * 1024)
     // stackDepth: 64

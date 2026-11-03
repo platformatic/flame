@@ -45,6 +45,9 @@ const { values: args, positionals } = parseArgs({
     },
     'md-format': {
       type: 'string'
+    },
+    deopt: {
+      type: 'boolean'
     }
   },
   allowPositionals: true
@@ -73,6 +76,7 @@ Options:
   -n, --node-modules-source-maps <mods>  Node modules to load sourcemaps from (comma-separated, e.g., "next,@next/next-server")
       --node-options <options>  Node.js CLI options to pass to the profiled process
       --md-format <format>  Markdown format: summary (default), detailed, or adaptive
+      --deopt            Track V8 deoptimizations while profiling and show them on the flamegraph
   -h, --help             Show this help message
   -v, --version          Show version number
 
@@ -85,6 +89,7 @@ Examples:
   flame run --sourcemap-dirs=dist:build server.js          # Enable sourcemap support
   flame run -n next,@next/next-server server.js            # Load Next.js sourcemaps from node_modules
   flame run --md-format=detailed server.js                 # Use detailed markdown format
+  flame run --deopt server.js                              # Highlight V8 deoptimizations on the flamegraph
   flame run --node-options="--require ts-node/register" server.ts     # With Node.js options
   flame run --node-options="--import ./loader.js --max-old-space-size=4096" server.js
   flame generate profile.pb.gz
@@ -154,13 +159,17 @@ async function main () {
           delay,
           sourcemapDirs,
           nodeModulesSourceMaps,
-          mdFormat
+          mdFormat,
+          deopt: args.deopt
         })
 
         console.log(`🔥 Started profiling process ${pid}`)
         if (autoStart) {
           console.log('🔥 CPU profiling is active and will generate profile on exit')
           console.log('🔥 Profile (.pb) and interactive HTML flamegraph will be auto-generated')
+          if (args.deopt) {
+            console.log('🔥 V8 deoptimizations will be highlighted on the CPU flamegraph')
+          }
           console.log('🔥 Generated files will be saved in the current directory')
           console.log('Send SIGUSR2 to manually toggle profiling:')
         } else {
