@@ -41,7 +41,7 @@
     "fastify": "^5.5.0",
     "pprof-format": "^2.2.1",
     "pprof-to-md": "^0.2.0",
-    "react-pprof": "^1.4.0"
+    "react-pprof": "^1.6.0"
   },
   "devDependencies": {
     "@fastify/compress": "^8.1.0",
