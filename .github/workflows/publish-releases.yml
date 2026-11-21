@@ -27,7 +27,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@v6
         with:
-          node-version: '24'
+          node-version: '26'
           registry-url: 'https://registry.npmjs.org'
       - run: npm install npm -g
       - run: npm install
