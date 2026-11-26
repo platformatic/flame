@@ -85,6 +85,7 @@ Options:
   -s, --sourcemap-dirs <dirs>  Directories to search for sourcemaps (colon/semicolon-separated)
       --md-format <format>  Markdown format: summary (default), detailed, or adaptive
       --node-options <options>  Node.js CLI options to pass to the profiled process
+      --deopt              Track V8 deoptimizations and show them on the CPU flamegraph
   -h, --help               Show help message
   -v, --version            Show version number
 ```
@@ -99,6 +100,9 @@ const { pid, toggleProfiler } = startProfiling('server.js', ['--port', '3000'], 
 
 // Or start in manual mode
 const { pid, toggleProfiler } = startProfiling('server.js', ['--port', '3000'], { autoStart: false })
+
+// Track V8 deoptimizations while profiling
+startProfiling('server.js', [], { autoStart: true, deopt: true })
 
 console.log(`Started profiling process ${pid}`)
 
@@ -122,6 +126,55 @@ const profile = await parseProfile('profile.pb')
 3. **Manual Mode**: Use `--manual` flag to require `SIGUSR2` signals for start/stop control (no auto-HTML generation)
 4. **Interactive Visualization**: The `@platformatic/react-pprof` library generates interactive WebGL-based HTML flamegraphs for both profile types
 5. **Markdown Analysis**: The `pprof-to-md` library generates LLM-friendly markdown reports with hotspot tables for AI-assisted debugging
+
+## V8 Deoptimizations
+
+```bash
+flame run --deopt server.js
+```
+
+With `--deopt`, flame records the V8 deoptimizations that happen while the
+CPU profiler runs and stores them in the CPU profile. The flamegraph then:
+
+- marks frames that had actionable deopts (a bar along the bottom edge and a
+  triangle in the top-right corner)
+- shows the deopt count and the most frequent reasons in the hover tooltip
+- lists every deopt of the selected frame in the details panel, with its source
+  position and an explanation of the reason
+- adds a **Highlight Deopts** checkbox to turn the markers off
+
+The markdown report gets a **V8 Deoptimizations** section listing the functions
+with actionable deopts, their share of the profile and an explanation of each
+reason. Deopts that are part of V8's normal tiering (on-stack replacement,
+insufficient type feedback) are counted but not highlighted. A deopt is not a
+bug by itself: it matters when it repeats in a function that takes a large
+share of the profile.
+
+Explanations come from a catalog of V8's deopt reasons shipped with
+`react-pprof`, derived from
+[deoptigate's deoptimization guide](https://github.com/Uzlopak/deoptigate/blob/59e854d5cabfe2f9698246c985ad21f3a820b0b8/assets/deoptimization.md).
+
+### How it works
+
+V8 does not reliably write deopt records to its `--log-deopt` log while a CPU
+profile is being recorded, so flame reads V8's deopt traces instead: the process starts
+with `--trace-deopt-verbose` writing to a temporary file
+(`--redirect-code-traces-to`), and the preload turns tracing off right away and
+back on only while the profiler runs, including windows started with `SIGUSR2`.
+At the end of each window the new traces are parsed, matched to the functions
+in the profile, and stored as a JSON comment in the `.pb` file, so
+`flame generate` shows them too.
+
+### Notes
+
+- Deopts that happen before profiling starts (for example during startup with
+  the default `--delay=until-started`) are not recorded; use `--delay=none` to
+  include them.
+- Verbose deopt traces include the deoptimized frames, so programs that
+  deoptimize a lot write a large temporary file; it is removed when the process
+  exits.
+- Worker threads are traced too, but their deopts are only matched to functions
+  that appear in the main thread's CPU profile.
 
 ## Sourcemap Support
 
